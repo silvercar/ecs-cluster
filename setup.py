@@ -34,7 +34,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': {
-            'ecs-cluster = main:cli'
+            'ecs-cluster = ecs_cluster.main:cli'
         }
     },
     classifiers=[
