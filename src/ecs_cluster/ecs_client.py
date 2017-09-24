@@ -23,16 +23,25 @@ class ECSClient(object):
                                               task_definition,
                                               container_name, image_name)
         if new_task_definition is None:
-            self._print_error("Unable to clone the task " + task_definition)
+            self._print_error("Unable to clone the task definition " + task_definition)
             return None
 
         service = self.update_service(cluster_name, service_name, new_task_definition)
         if service is None:
-            self._print_error("Unable to restart the service %s with task %s"
-                              % (service_name, new_task_definition_arn))
+            self._print_error("Unable to update the service %s with task %s"
+                              % (service_name, new_task_definition))
 
         # Dereister the old task definition
         self.deregister_task_definition(task_definition)
+
+        # Stops tasks similar to the old task definition
+        self.stop_tasks_similar_to_task_definition(cluster_name, task_definition)
+
+        # Start the new task
+        task = self.start_task(cluster_name, new_task_definition)
+        if task is None:
+            self._print_error("Unable to start the task %s in cluster %s"
+                              % (new_task_definition, cluster_name))
 
         print("Success")
 
@@ -110,6 +119,50 @@ class ECSClient(object):
             return None
 
         return response['taskDefinition']
+
+    def stop_tasks_similar_to_task_definition(self, cluster_name, task_definition):
+        """ Stops all running tasks similar a task definition. Similarity
+            is measured by the task definition family name. If two task definition
+            arns only vary by the revision, they will have the same family
+            Returns the stopped tasks if successful, None otherwise 
+        """
+        response = self.client.describe_task_definition(taskDefinition=task_definition)
+
+        if response is None or 'taskDefinition' not in response:
+            return None
+
+        family = response['taskDefinition']['family']
+
+        response = self.client.list_tasks(cluster=cluster_name,
+                                          family=family,
+                                          desiredStatus='RUNNING')
+        if response is None or 'taskArns' not in response:
+            self._print_error("No running tasks found")
+            return None
+
+        stopped = []
+
+        for task_arn in response['taskArns']:
+            response = self.client.stop_task(cluster=cluster_name, task=task_arn)
+
+            if response is None or 'task' not in response:
+                self._print_error("Could not stop task %s" % task_arn)
+
+            stopped.append(response['task'])
+
+        return stopped
+
+    def start_task(self, cluster_name, task_definition):
+        """ Starts a new task for the task_definition. Returns the started task
+            if successful, None otherwise.
+        """
+        response = self.client.run_task(cluster=cluster_name, taskDefinition=task_definition)
+
+        if response is None or 'tasks' not in response \
+                or len(response['tasks']) == 0:
+            return None
+
+        return response['tasks'][0]
 
 if __name__ == '__main__':
     import argparse
