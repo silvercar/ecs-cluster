@@ -2,6 +2,8 @@ import boto3
 
 
 class ECSClient(object):
+    """ Abstraction of the boto ecs client
+    """
     def __init__(self):
         self.client = boto3.client('ecs')
 
@@ -163,14 +165,3 @@ class ECSClient(object):
             return None
 
         return response['tasks'][0]
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("cluster")
-    parser.add_argument("container")
-    parser.add_argument("image")
-    args = parser.parse_args()
-
-    ecs_client = ECSClient()
-    ecs_client.redeploy_image(args.cluster, args.container, args.image)
