@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'boto3',
-    'click'
+    'click',
+    'polling'
 ]
 
 test_requires = []

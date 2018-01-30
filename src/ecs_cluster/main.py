@@ -43,34 +43,41 @@ def list_services(cluster):
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
+@click.option("--container", required=True)
 @click.option("--image")
-def update_image(cluster, service, service_arn, image):
+def update_image(cluster, service, service_arn, container, image):
     ecs_client = ECSClient()
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+    service = ecs_client.redeploy_image(cluster, service_arn, container, image)
 
-    ecs_client.redeploy_image(cluster, service_arn, image)
+    if service is not None:
+        print("Success")
+    print()
 
 
 @click.command('update-taskdef')
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
-@click.argument("taskdef", callback=_get_cli_stdin, required=False)
-def update_taskdef(cluster, service, service_arn, taskdef):
+@click.argument("taskdef_text", callback=_get_cli_stdin, required=False)
+def update_taskdef(cluster, service, service_arn, taskdef_text):
     ecs_client = ECSClient()
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
-    new_taskdef_arn = ecs_client.register_task_definition(json.loads(taskdef))
     old_taskdef_arn = ecs_client.get_task_definition_arn(cluster, service_arn)
+    taskdef = json.loads(taskdef_text)
 
-    print("Replacing task def %s with task def %s for service"
-          % (old_taskdef_arn, new_taskdef_arn, service_arn))
+    # make sure the family is the same as the old task
+    taskdef['family'] = ecs_client.get_task_family(old_taskdef_arn)
 
-    task = ecs_client.redeploy_service_task(cluster, service_arn,
+    new_taskdef_arn = ecs_client.register_task_definition(taskdef)
+
+    service = ecs_client.redeploy_service_task(cluster, service_arn,
                                             old_taskdef_arn, new_taskdef_arn)
 
-    if task is not None:
+    if service is not None:
         print("Success")
+    print()
 
 
 cli.add_command(list_services)
