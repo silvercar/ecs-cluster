@@ -4,6 +4,8 @@ import polling
 
 class ECSClient(object):
     def __init__(self, timeout=60):
+        """ Abstraction of the boto ecs client
+        """
         self.client = boto3.client('ecs')
         self.timeout = timeout
 
@@ -39,7 +41,7 @@ class ECSClient(object):
                 timeout=self.timeout
             )
             return service
-        except polling.PollingException as ex:
+        except polling.PollingException:
             self._print_error("Timeout or max tries exceeded")
             return None
 
@@ -62,8 +64,10 @@ class ECSClient(object):
             self._print_error("Unable to clone the task definition " + old_taskdef_arn)
             return None
 
-        service = self.redeploy_service_task(cluster_name, service_arn,
-                                          old_taskdef_arn, new_taskdef_arn)
+        service = self.redeploy_service_task(cluster_name,
+                                             service_arn,
+                                             old_taskdef_arn,
+                                             new_taskdef_arn)
         if service is not None:
             print("Success")
 
@@ -72,7 +76,7 @@ class ECSClient(object):
         """
         try:
             response = self.client.list_services(cluster=cluster_name)
-        except Exception as ex:
+        except Exception:
             return None
         return response['serviceArns']
 
@@ -137,7 +141,7 @@ class ECSClient(object):
             if container['name'] == container_name:
                 container['image'] = image_name
 
-        register_kwargs = {"family":family, "containerDefinitions": containers}
+        register_kwargs = {"family": family, "containerDefinitions": containers}
         if 'taskRoleArn' in response['taskDefinition']:
             register_kwargs['taskRoleArn'] = response['taskDefinition']['taskRoleArn']
         if 'networkMode' in response['taskDefinition']:
