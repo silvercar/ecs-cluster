@@ -1,53 +1,86 @@
 import boto3
+import polling
 
 
 class ECSClient(object):
-    """ Abstraction of the boto ecs client
-    """
-    def __init__(self):
+    def __init__(self, timeout=60):
+        """ Abstraction of the boto ecs client
+        """
         self.client = boto3.client('ecs')
+        self.timeout = timeout
 
     def _print_error(self, msg):
         print('Error: ' + msg)
 
-    def redeploy_image(self, cluster_name, container_name, image_name):
-        service_name = self.get_service_arn(cluster_name)
-        if service_name is None:
-            self._print_error("No service found for cluster " + cluster_name)
-            return None
-
-        task_definition = self.get_task_definition_arn(cluster_name, service_name)
-        if task_definition is None:
-            self._print_error("No task definition found for service " + service_name)
-            return None
-
-        new_task_definition = self.clone_task(cluster_name,
-                                              task_definition,
-                                              container_name, image_name)
-        if new_task_definition is None:
-            self._print_error("Unable to clone the task definition " + task_definition)
-            return None
-
-        service = self.update_service(cluster_name, service_name, new_task_definition)
-        if service is None:
-            self._print_error("Unable to update the service %s with task %s"
-                              % (service_name, new_task_definition))
-
+    def redeploy_service_task(self, cluster_name, service_arn,
+                              old_taskdef_arn, new_taskdef_arn):
+        """ Redploys a service. This will stop the service's running task and
+            deregister it, then restart the service with the new task 
+            definition.
+        """
         # Dereister the old task definition
-        self.deregister_task_definition(task_definition)
+        self.deregister_task_definition(old_taskdef_arn)
 
         # Stops tasks similar to the old task definition
-        self.stop_tasks_similar_to_task_definition(cluster_name, task_definition)
+        self.stop_tasks_similar_to_task_definition(cluster_name, old_taskdef_arn)
 
-        # Start the new task
-        task = self.start_task(cluster_name, new_task_definition)
-        if task is None:
-            self._print_error("Unable to start the task %s in cluster %s"
-                              % (new_task_definition, cluster_name))
+        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        if service is None:
+            self._print_error("Unable to update the service %s with task %s"
+                              % (service_arn, new_taskdef_arn))
 
-        print("Success")
+        def _echo_poll_step(step):
+            print('waiting for service to restart...')
+            return step
 
-    def get_service_arn(self, cluster_name):
+        try:
+            polling.poll(
+                lambda: self.get_service(cluster_name, service_arn)['runningCount'] == service['desiredCount'],
+                step=5,
+                step_function=_echo_poll_step,
+                timeout=self.timeout
+            )
+            return service
+        except polling.PollingException:
+            self._print_error("Timeout or max tries exceeded")
+            return None
+
+    def redeploy_image(self, cluster_name, service_arn, container_name, image_name):
+        """ Redeploys a service while updating the image in it's task 
+            definition.
+        
+            This will find the service's task definition and create a new
+            revision with an updated image name for the specified container
+        """
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        if old_taskdef_arn is None:
+            self._print_error("No task definition found for service " + service_arn)
+            return None
+
+        new_taskdef_arn = self.clone_task(old_taskdef_arn,
+                                          container_name,
+                                          image_name)
+        if new_taskdef_arn is None:
+            self._print_error("Unable to clone the task definition " + old_taskdef_arn)
+            return None
+
+        service = self.redeploy_service_task(cluster_name,
+                                             service_arn,
+                                             old_taskdef_arn,
+                                             new_taskdef_arn)
+        if service is not None:
+            print("Success")
+
+    def get_services(self, cluster_name):
+        """ Returns the ARN of all services found for the cluster
+        """
+        try:
+            response = self.client.list_services(cluster=cluster_name)
+        except Exception:
+            return None
+        return response['serviceArns']
+
+    def get_default_service_arn(self, cluster_name):
         """ Returns the ARN of the first service found for the cluster
         """
         try:
@@ -58,21 +91,42 @@ class ECSClient(object):
             return None
         return response['serviceArns'][0]
 
+    def get_service(self, cluster_name, service_arn):
+        """ Returns the service object matching the service ARN
+        """
+        response = self.client.describe_services(cluster=cluster_name,
+                                                 services=[service_arn])
+        if response is None or len(response['services']) == 0:
+            return None
+        for service in response['services']:
+            if service['serviceArn'] == service_arn:
+                return service
+        return None
+
+    def get_task_family(self, taskdef_arn):
+        """ Returns the family of a task definition
+        """
+        response = self.client.describe_task_definition(taskDefinition=taskdef_arn)
+        if response is None or 'taskDefinition' not in response:
+            return ''
+        return response['taskDefinition']['family']
+
     def get_task_definition_arn(self, cluster_name, service_name):
         """ Returns the ARN of the task definition which matches the
             service name
         """
-        response = self.client.describe_services(cluster=cluster_name,
-                                                 services=[service_name])
-        if response is None or len(response['services']) == 0:
-            return None
-        for service in response['services']:
-            if service['serviceArn'] == service_name:
-                return service['taskDefinition']
+        service = self.get_service(cluster_name, service_name)
+        if service is not None:
+            return service['taskDefinition']
         return None
 
-    def clone_task(self, cluster_name, task_definition_arn, container_name,
-                   image_name):
+    def register_task_definition(self, register_kwargs):
+        response = self.client.register_task_definition(**register_kwargs)
+        new_task_definition_arn = response['taskDefinition']['taskDefinitionArn']
+
+        return new_task_definition_arn
+
+    def clone_task(self, task_definition_arn, container_name, image_name):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
         """
@@ -87,16 +141,13 @@ class ECSClient(object):
             if container['name'] == container_name:
                 container['image'] = image_name
 
-        register_kwargs = {"family":family, "containerDefinitions": containers}
-        if 'taskRoleArn' in  response['taskDefinition']:
+        register_kwargs = {"family": family, "containerDefinitions": containers}
+        if 'taskRoleArn' in response['taskDefinition']:
             register_kwargs['taskRoleArn'] = response['taskDefinition']['taskRoleArn']
-        if 'networkMode' in  response['taskDefinition']:
+        if 'networkMode' in response['taskDefinition']:
             register_kwargs['networkMode'] = response['taskDefinition']['networkMode']
 
-        response = self.client.register_task_definition(**register_kwargs)
-        new_task_definition_arn = response['taskDefinition']['taskDefinitionArn']
-
-        return new_task_definition_arn
+        return self.register_task_definition(register_kwargs)
 
     def update_service(self, cluster_name, service_name, task_definition_arn):
         """ Updates the service with a different task deinifition. Returns
