@@ -3,8 +3,9 @@ import polling
 
 
 class ECSClient(object):
-    def __init__(self):
+    def __init__(self, timeout=60):
         self.client = boto3.client('ecs')
+        self.timeout = timeout
 
     def _print_error(self, msg):
         print('Error: ' + msg)
@@ -27,7 +28,7 @@ class ECSClient(object):
                               % (service_arn, new_taskdef_arn))
 
         def _echo_poll_step(step):
-            print('wating for service to restart...')
+            print('waiting for service to restart...')
             return step
 
         try:
@@ -35,11 +36,11 @@ class ECSClient(object):
                 lambda: self.get_service(cluster_name, service_arn)['runningCount'] == service['desiredCount'],
                 step=5,
                 step_function=_echo_poll_step,
-                timeout=60
+                timeout=self.timeout
             )
             return service
-        except Exception as ex:
-            self._print_error(ex.message)
+        except polling.PollingException as ex:
+            self._print_error("Timeout or max tries exceeded")
             return None
 
     def redeploy_image(self, cluster_name, service_arn, container_name, image_name):

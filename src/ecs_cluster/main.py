@@ -25,14 +25,17 @@ def _get_cli_stdin(ctx, param, value):
 
 
 @click.group()
-def cli():
-    pass
+@click.option("--timeout", required=False, type=int, default=60)
+@click.pass_context
+def cli(ctx, timeout):
+    ctx.obj = {'timeout':timeout}
 
 
 @click.command('list-services')
 @click.option("--cluster", required=True)
-def list_services(cluster):
-    ecs_client = ECSClient()
+@click.pass_context
+def list_services(ctx, cluster):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     print("-- services for %s --" % cluster)
     for service in ecs_client.get_services(cluster) or []:
         print("    %s" % service)
@@ -45,8 +48,9 @@ def list_services(cluster):
 @click.option("--service-arn", required=False)
 @click.option("--container", required=True)
 @click.option("--image")
-def update_image(cluster, service, service_arn, container, image):
-    ecs_client = ECSClient()
+@click.pass_context
+def update_image(ctx, cluster, service, service_arn, container, image):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
     service = ecs_client.redeploy_image(cluster, service_arn, container, image)
 
@@ -60,8 +64,9 @@ def update_image(cluster, service, service_arn, container, image):
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
 @click.argument("taskdef_text", callback=_get_cli_stdin, required=False)
-def update_taskdef(cluster, service, service_arn, taskdef_text):
-    ecs_client = ECSClient()
+@click.pass_context
+def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
     old_taskdef_arn = ecs_client.get_task_definition_arn(cluster, service_arn)
@@ -72,8 +77,10 @@ def update_taskdef(cluster, service, service_arn, taskdef_text):
 
     new_taskdef_arn = ecs_client.register_task_definition(taskdef)
 
-    service = ecs_client.redeploy_service_task(cluster, service_arn,
-                                            old_taskdef_arn, new_taskdef_arn)
+    service = ecs_client.redeploy_service_task(cluster,
+                                               service_arn,
+                                               old_taskdef_arn,
+                                               new_taskdef_arn)
 
     if service is not None:
         print("Success")
