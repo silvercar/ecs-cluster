@@ -111,11 +111,11 @@ class ECSClient(object):
             return ''
         return response['taskDefinition']['family']
 
-    def get_task_definition_arn(self, cluster_name, service_name):
+    def get_task_definition_arn(self, cluster_name, service_arn):
         """ Returns the ARN of the task definition which matches the
             service name
         """
-        service = self.get_service(cluster_name, service_name)
+        service = self.get_service(cluster_name, service_arn)
         if service is not None:
             return service['taskDefinition']
         return None
