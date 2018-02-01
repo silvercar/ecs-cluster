@@ -77,6 +77,7 @@ class ECSClient(object):
         try:
             response = self.client.list_services(cluster=cluster_name)
         except Exception:
+            self._print_error("Error getting list of services for %s" % cluster_name)
             return None
         return response['serviceArns']
 
@@ -101,6 +102,8 @@ class ECSClient(object):
         for service in response['services']:
             if service['serviceArn'] == service_arn:
                 return service
+
+        self._print_error("No service for cluster %s matches %s" % (cluster_name, service_arn))
         return None
 
     def get_task_family(self, taskdef_arn):

@@ -35,8 +35,7 @@ def cli(ctx, timeout):
 
 @click.command('list-services')
 @click.option("--cluster", required=True)
-@click.pass_context
-def list_services(ctx, cluster):
+def list_services(cluster):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     click.echo('-- services for %s --' % cluster)
     for service in ecs_client.get_services(cluster) or []:
