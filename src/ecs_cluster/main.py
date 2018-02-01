@@ -36,7 +36,7 @@ def cli(ctx, timeout):
 @click.command('list-services')
 @click.option("--cluster", required=True)
 def list_services(cluster):
-    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+    ecs_client = ECSClient()
     click.echo('-- services for %s --' % cluster)
     for service in ecs_client.get_services(cluster) or []:
         click.echo('    %s' % service)
@@ -56,7 +56,7 @@ def update_image(ctx, cluster, service, service_arn, container, image):
 
     if service_arn is None:
         click.echo('No matching service found for cluster %s' % cluster, err=True)
-        list_services(ctx, cluster)
+        list_services(cluster)
         sys.exit(1)
 
     service = ecs_client.redeploy_image(cluster, service_arn, container, image)
@@ -77,7 +77,7 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
 
     if service_arn is None:
         click.echo('No matching service found for cluster %s' % cluster, err=True)
-        list_services(ctx, cluster)
+        list_services(cluster)
         sys.exit(1)
 
     old_taskdef_arn = ecs_client.get_task_definition_arn(cluster, service_arn)
