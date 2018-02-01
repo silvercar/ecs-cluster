@@ -1,6 +1,8 @@
 from __future__ import print_function
 
 import json
+import sys
+
 import click
 
 from .ecs_client import ECSClient
@@ -36,10 +38,10 @@ def cli(ctx, timeout):
 @click.pass_context
 def list_services(ctx, cluster):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
-    print("-- services for %s --" % cluster)
+    click.echo('-- services for %s --' % cluster)
     for service in ecs_client.get_services(cluster) or []:
-        print("    %s" % service)
-    print()
+        click.echo('    %s' % service)
+    click.echo('')
 
 
 @click.command('update-image')
@@ -52,11 +54,15 @@ def list_services(ctx, cluster):
 def update_image(ctx, cluster, service, service_arn, container, image):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
-    service = ecs_client.redeploy_image(cluster, service_arn, container, image)
 
+    if service_arn is None:
+        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        sys.exit(1)
+
+    service = ecs_client.redeploy_image(cluster, service_arn, container, image)
     if service is not None:
-        print("Success")
-    print()
+        click.echo('Success')
+    click.echo('')
 
 
 @click.command('update-taskdef')
@@ -68,6 +74,10 @@ def update_image(ctx, cluster, service, service_arn, container, image):
 def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+
+    if service_arn is None:
+        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        sys.exit(1)
 
     old_taskdef_arn = ecs_client.get_task_definition_arn(cluster, service_arn)
     taskdef = json.loads(taskdef_text)
@@ -83,9 +93,8 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
                                                new_taskdef_arn)
 
     if service is not None:
-        print("Success")
-    print()
-
+        click.echo('Success')
+    click.echo('')
 
 cli.add_command(list_services)
 cli.add_command(update_image)
