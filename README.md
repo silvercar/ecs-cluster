@@ -13,7 +13,7 @@ This will find the running task in a service, create a new task definition with 
 deactivate the running task's definition, stop the running task and start a new one. This is not
 intended for blue-green deployments.
 
-`ecs-client --container <ecs_container_name> --service <ecs_service_name> --image <ecr_image>`
+`ecs-cluster --container <ecs_container_name> --service <ecs_service_name> --image <ecr_image>`
 
 ## Contributing
 
@@ -22,5 +22,3 @@ intended for blue-green deployments.
 2. Commit your changes: `git commit -am 'Add some feature'`
 3. Push to the branch: `git push origin my-new-feature`
 4. Submit a pull request :D
-
-

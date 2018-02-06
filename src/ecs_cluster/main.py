@@ -49,9 +49,10 @@ def list_services(ctx, cluster):
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
 @click.option("--container", required=True)
-@click.option("--image")
+@click.option("--image", required=True)
+@click.option("--redeploy", is_flag=True, help="Restart tasks after update")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, container, image):
+def update_image(ctx, cluster, service, service_arn, container, image, redeploy):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -59,7 +60,11 @@ def update_image(ctx, cluster, service, service_arn, container, image):
         click.echo('No matching service found for cluster %s' % cluster, err=True)
         sys.exit(1)
 
-    service = ecs_client.redeploy_image(cluster, service_arn, container, image)
+    if redeploy:
+        service = ecs_client.redeploy_image(cluster, service_arn, container, image)
+    else:
+        service = ecs_client.update_image(cluster, service_arn, container, image)
+
     if service is not None:
         click.echo('Success')
     click.echo('')
@@ -91,6 +96,7 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
                                                service_arn,
                                                old_taskdef_arn,
                                                new_taskdef_arn)
+
 
     if service is not None:
         click.echo('Success')
