@@ -7,18 +7,33 @@ Tools for working with AWS ECS clusters.
 
 ## Usage
 
-### updating a task image and restarting the task
+### Updating the container image in a task definition
 
-This will find the running task in a service, create a new task definition with the new image,
-deactivate the running task's definition, stop the running task and start a new one. This is not
-intended for blue-green deployments.
+This will update the image in the task definition, and update the service to use this new definition.
+Afterwards, the ecs-agent will take care of starting new tasks and stopping the old ones (according
+to its deployment configuration/health check rules).
 
-`ecs-cluster --container <ecs_container_name> --service <ecs_service_name> --image <ecr_image>`
+`ecs-cluster  update-image --cluster <cluster_name> --service <ecs_service_name> --container <ecs_container_name> --image <ecr_image>`
+
+### Updating a task image and restarting the task
+
+Same as above, except the tasks will be forcefully stopped first, and then replaced.
+Note the `--restart` flag.
+
+`ecs-cluster  update-image --cluster <cluster_name> --service <ecs_service_name> --container <ecs_container_name> --image <ecr_image> --restart`
 
 ## Contributing
 
 1. Branch off of develop, so make sure you're on develop first: `git checkout develop`
-1. Create your feature branch: `git checkout -b my-new-feature`
-2. Commit your changes: `git commit -am 'Add some feature'`
-3. Push to the branch: `git push origin my-new-feature`
-4. Submit a pull request :D
+2. Create your feature branch: `git checkout -b my-new-feature`
+3. Test your changes:
+    ```bash
+    $ virtualenv venv
+    $ . venv/bin/activate
+    $ pip install --editable .
+    $ ecs-cluster
+    ```
+
+4. Commit your changes: `git commit -am 'Add some feature'`
+5. Push to the branch: `git push origin my-new-feature`
+6. Submit a pull request :D

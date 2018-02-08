@@ -10,7 +10,12 @@ from .ecs_client import ECSClient
 
 def _get_service_arn(ecs_client, cluster, service, service_arn):
     if service is not None:
-        matches = [arn for arn in ecs_client.get_services(cluster)
+        services = ecs_client.get_services(cluster)
+        if services is None:
+            click.echo('Could not get ECS services. Check AWS credentials', err=True)
+            sys.exit(1)
+
+        matches = [arn for arn in services
                    if service == arn.split('/', 1)[1]]
         if len(matches) > 0:
             service_arn = matches[0]
@@ -24,7 +29,6 @@ def _get_cli_stdin(ctx, param, value):
         return click.get_text_stream('stdin').read().strip()
     else:
         return value
-
 
 @click.group()
 @click.option("--timeout", required=False, type=int, default=60)
@@ -44,15 +48,15 @@ def list_services(ctx, cluster):
     click.echo('')
 
 
-@click.command('update-image')
+@click.command('update-image', context_settings=dict(max_content_width=120))
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
-@click.option("--redeploy", is_flag=True, help="Restart tasks after update")
+@click.option("--restart", is_flag=True, default=False, help="Force task restart after update. Defaults to false.")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, container, image, redeploy):
+def update_image(ctx, cluster, service, service_arn, container, image, restart):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -60,7 +64,7 @@ def update_image(ctx, cluster, service, service_arn, container, image, redeploy)
         click.echo('No matching service found for cluster %s' % cluster, err=True)
         sys.exit(1)
 
-    if redeploy:
+    if restart:
         service = ecs_client.redeploy_image(cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(cluster, service_arn, container, image)
