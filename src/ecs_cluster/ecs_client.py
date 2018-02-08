@@ -15,10 +15,10 @@ class ECSClient(object):
     def redeploy_service_task(self, cluster_name, service_arn,
                               old_taskdef_arn, new_taskdef_arn):
         """ Redploys a service. This will stop the service's running task and
-            deregister it, then restart the service with the new task 
+            deregister it, then restart the service with the new task
             definition.
         """
-        # Dereister the old task definition
+        # Deregister the old task definition
         self.deregister_task_definition(old_taskdef_arn)
 
         # Stops tasks similar to the old task definition
@@ -46,11 +46,13 @@ class ECSClient(object):
             return None
 
     def redeploy_image(self, cluster_name, service_arn, container_name, image_name):
-        """ Redeploys a service while updating the image in it's task 
+        """ Redeploys a service while updating the image in its task
             definition.
-        
+
             This will find the service's task definition and create a new
-            revision with an updated image name for the specified container
+            revision with an updated image name for the specified container.
+            It will then stop the running tasks and restart them with the new
+            definition.
         """
         old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         if old_taskdef_arn is None:
@@ -68,6 +70,36 @@ class ECSClient(object):
                                              service_arn,
                                              old_taskdef_arn,
                                              new_taskdef_arn)
+        if service is not None:
+            print("Success")
+
+    def update_image(self, cluster_name, service_arn, container_name, image_name):
+        """ Update the image in a task definition
+
+            Same as redeploy_image, except the tasks won't be stopped. Instead,
+            we'll let the ecs-agent do its thing and replace the tasks following
+            whatever deployment strategy is configured.
+        """
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        if old_taskdef_arn is None:
+            self._print_error("No task definition found for service " + service_arn)
+            return None
+
+        new_taskdef_arn = self.clone_task(old_taskdef_arn,
+                                          container_name,
+                                          image_name)
+        if new_taskdef_arn is None:
+            self._print_error("Unable to clone the task definition " + old_taskdef_arn)
+            return None
+
+        # Deregister the old task definition
+        self.deregister_task_definition(old_taskdef_arn)
+
+        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        if service is None:
+            self._print_error("Unable to update the service %s with task %s"
+                              % (service_arn, new_taskdef_arn))
+
         if service is not None:
             print("Success")
 
@@ -153,7 +185,7 @@ class ECSClient(object):
         return self.register_task_definition(register_kwargs)
 
     def update_service(self, cluster_name, service_name, task_definition_arn):
-        """ Updates the service with a different task deinifition. Returns
+        """ Updates the service with a different task definition. Returns
             the service response if successful, otherwise None
         """
         response = self.client.update_service(cluster=cluster_name,
@@ -180,7 +212,7 @@ class ECSClient(object):
         """ Stops all running tasks similar a task definition. Similarity
             is measured by the task definition family name. If two task definition
             arns only vary by the revision, they will have the same family
-            Returns the stopped tasks if successful, None otherwise 
+            Returns the stopped tasks if successful, None otherwise
         """
         response = self.client.describe_task_definition(taskDefinition=task_definition)
 
