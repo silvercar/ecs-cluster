@@ -46,11 +46,13 @@ class ECSClient(object):
             return None
 
     def redeploy_image(self, cluster_name, service_arn, container_name, image_name):
-        """ Redeploys a service while updating the image in it's task
+        """ Redeploys a service while updating the image in its task
             definition.
 
             This will find the service's task definition and create a new
-            revision with an updated image name for the specified container
+            revision with an updated image name for the specified container.
+            It will then stop the running tasks and restart them with the new
+            definition.
         """
         old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         if old_taskdef_arn is None:
@@ -74,8 +76,9 @@ class ECSClient(object):
     def update_image(self, cluster_name, service_arn, container_name, image_name):
         """ Update the image in a task definition
 
-            This will find the service's task definition and create a new
-            revision with an updated image name for the specified container
+            Same as redeploy_image, except the tasks won't be stopped. Instead,
+            we'll let the ecs-agent do its thing and replace the tasks following
+            whatever deployment strategy is configured.
         """
         old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         if old_taskdef_arn is None:
