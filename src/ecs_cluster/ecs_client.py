@@ -1,6 +1,6 @@
 import boto3
 import polling
-
+import pprint
 
 class ECSClient(object):
     def __init__(self, timeout=60):
@@ -166,23 +166,28 @@ class ECSClient(object):
             task definition arn if successful, otherwise None
         """
         response = self.client.describe_task_definition(taskDefinition=task_definition_arn)
+
         if response is None or 'taskDefinition' not in response:
             return None
-        containers = response['taskDefinition']['containerDefinitions']
-        family = response['taskDefinition']['family']
+
+        taskDef = response['taskDefinition']
+        containers = taskDef['containerDefinitions']
 
         # Update the image in the container
         for container in containers:
             if container['name'] == container_name:
                 container['image'] = image_name
 
-        register_kwargs = {"family": family, "containerDefinitions": containers}
-        if 'taskRoleArn' in response['taskDefinition']:
-            register_kwargs['taskRoleArn'] = response['taskDefinition']['taskRoleArn']
-        if 'networkMode' in response['taskDefinition']:
-            register_kwargs['networkMode'] = response['taskDefinition']['networkMode']
+        taskDef['containerDefinitions'] = containers
 
-        return self.register_task_definition(register_kwargs)
+        # Remove fields not required for new task def
+        taskDef.pop('revision')
+        taskDef.pop('status')
+        taskDef.pop('taskDefinitionArn')
+        taskDef.pop('compatibilities')
+        taskDef.pop('requiresAttributes')
+
+        return self.register_task_definition(taskDef)
 
     def update_service(self, cluster_name, service_name, task_definition_arn):
         """ Updates the service with a different task definition. Returns
