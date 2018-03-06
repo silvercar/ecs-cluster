@@ -1,6 +1,5 @@
 import boto3
 import polling
-import pprint
 
 class ECSClient(object):
     def __init__(self, timeout=60):
