@@ -169,7 +169,7 @@ class ECSClient(object):
         if response is None or 'taskDefinition' not in response:
             return None
 
-        taskDef = response['taskDefinition']
+        task_def = response['taskDefinition']
         containers = taskDef['containerDefinitions']
 
         # Update the image in the container
@@ -177,16 +177,16 @@ class ECSClient(object):
             if container['name'] == container_name:
                 container['image'] = image_name
 
-        taskDef['containerDefinitions'] = containers
+        task_def['containerDefinitions'] = containers
 
         # Remove fields not required for new task def
-        taskDef.pop('revision')
-        taskDef.pop('status')
-        taskDef.pop('taskDefinitionArn')
-        taskDef.pop('compatibilities')
-        taskDef.pop('requiresAttributes')
+        task_def.pop('revision')
+        task_def.pop('status')
+        task_def.pop('taskDefinitionArn')
+        task_def.pop('compatibilities')
+        task_def.pop('requiresAttributes')
 
-        return self.register_task_definition(taskDef)
+        return self.register_task_definition(task_def)
 
     def update_service(self, cluster_name, service_name, task_definition_arn):
         """ Updates the service with a different task definition. Returns
