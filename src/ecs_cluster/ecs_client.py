@@ -170,7 +170,7 @@ class ECSClient(object):
             return None
 
         task_def = response['taskDefinition']
-        containers = taskDef['containerDefinitions']
+        containers = task_def['containerDefinitions']
 
         # Update the image in the container
         for container in containers:
