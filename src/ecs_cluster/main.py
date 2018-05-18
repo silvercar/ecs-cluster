@@ -101,11 +101,34 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
                                                old_taskdef_arn,
                                                new_taskdef_arn)
 
-
     if service is not None:
         click.echo('Success')
     click.echo('')
 
+
+@click.command('ssh-service')
+@click.option("--cluster", required=True)
+@click.option("--service", required=False)
+@click.option("--service-arn", required=False)
+@click.option("--task-arn", required=False)
+@click.option("--rails", help='enter rails console', required=False, default=False)
+@click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
+@click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.pass_context
+def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+
+    service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+
+    if service_arn is None:
+        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        sys.exit(1)
+
+    service_cmd = 'pwd'
+    ecs_client.ssh_to_service(cluster, service_arn, task_arn, user, keydir, service_cmd)
+
+
 cli.add_command(list_services)
 cli.add_command(update_image)
 cli.add_command(update_taskdef)
+cli.add_command(ssh_service)
