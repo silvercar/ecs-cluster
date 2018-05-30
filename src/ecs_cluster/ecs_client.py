@@ -298,7 +298,7 @@ class ECSClient(object):
 #        channel = ssh_client.get_transport().open_session()
 #        posix_shell(channel)
 
-        print docker_cmd
+        print(docker_cmd)
 #        stdin, stdout, stderr = ssh_client.exec_command(docker_cmd)
         stdin, stdout, stderr = ssh_client.exec_command('docker container ls')
         print(stdout.read())
