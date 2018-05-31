@@ -12,7 +12,8 @@ def _get_service_arn(ecs_client, cluster, service, service_arn):
     if service is not None:
         services = ecs_client.get_services(cluster)
         if services is None:
-            click.echo('Could not get ECS services. Check AWS credentials', err=True)
+            click.echo(
+                'Could not get ECS services. Check AWS credentials', err=True)
             sys.exit(1)
 
         matches = [arn for arn in services
@@ -30,11 +31,12 @@ def _get_cli_stdin(ctx, param, value):
     else:
         return value
 
+
 @click.group()
 @click.option("--timeout", required=False, type=int, default=60)
 @click.pass_context
 def cli(ctx, timeout):
-    ctx.obj = {'timeout':timeout}
+    ctx.obj = {'timeout': timeout}
 
 
 @click.command('list-services')
@@ -61,13 +63,16 @@ def update_image(ctx, cluster, service, service_arn, container, image, restart):
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
     if service_arn is None:
-        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        click.echo('No matching service found for cluster %s' %
+                   cluster, err=True)
         sys.exit(1)
 
     if restart:
-        service = ecs_client.redeploy_image(cluster, service_arn, container, image)
+        service = ecs_client.redeploy_image(
+            cluster, service_arn, container, image)
     else:
-        service = ecs_client.update_image(cluster, service_arn, container, image)
+        service = ecs_client.update_image(
+            cluster, service_arn, container, image)
 
     if service is not None:
         click.echo('Success')
@@ -85,7 +90,8 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
     if service_arn is None:
-        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        click.echo('No matching service found for cluster %s' %
+                   cluster, err=True)
         sys.exit(1)
 
     old_taskdef_arn = ecs_client.get_task_definition_arn(cluster, service_arn)
@@ -121,11 +127,13 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
     if service_arn is None:
-        click.echo('No matching service found for cluster %s' % cluster, err=True)
+        click.echo('No matching service found for cluster %s' %
+                   cluster, err=True)
         sys.exit(1)
 
-    service_cmd = 'pwd'
-    ecs_client.ssh_to_service(cluster, service_arn, task_arn, user, keydir, service_cmd)
+    service_cmd = '/bin/bash'
+    ecs_client.ssh_to_service(cluster, service_arn,
+                              task_arn, user, keydir, service_cmd)
 
 
 cli.add_command(list_services)

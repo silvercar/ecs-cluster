@@ -1,10 +1,14 @@
 import os
-
 import boto3
 import polling
 import requests
 import paramiko
-
+from paramiko.py3compat import u
+import termios
+import tty
+import sys
+import select
+import socket
 from .posix_shell import posix_shell
 
 
@@ -29,9 +33,11 @@ class ECSClient(object):
         self.deregister_task_definition(old_taskdef_arn)
 
         # Stops tasks similar to the old task definition
-        self.stop_tasks_similar_to_task_definition(cluster_name, old_taskdef_arn)
+        self.stop_tasks_similar_to_task_definition(
+            cluster_name, old_taskdef_arn)
 
-        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        service = self.update_service(
+            cluster_name, service_arn, new_taskdef_arn)
         if service is None:
             self._print_error("Unable to update the service %s with task %s"
                               % (service_arn, new_taskdef_arn))
@@ -42,7 +48,8 @@ class ECSClient(object):
 
         try:
             polling.poll(
-                lambda: self.get_service(cluster_name, service_arn)['runningCount'] == service['desiredCount'],
+                lambda: self.get_service(cluster_name, service_arn)[
+                    'runningCount'] == service['desiredCount'],
                 step=5,
                 step_function=_echo_poll_step,
                 timeout=self.timeout
@@ -61,16 +68,19 @@ class ECSClient(object):
             It will then stop the running tasks and restart them with the new
             definition.
         """
-        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(
+            cluster_name, service_arn)
         if old_taskdef_arn is None:
-            self._print_error("No task definition found for service " + service_arn)
+            self._print_error(
+                "No task definition found for service " + service_arn)
             return None
 
         new_taskdef_arn = self.clone_task(old_taskdef_arn,
                                           container_name,
                                           image_name)
         if new_taskdef_arn is None:
-            self._print_error("Unable to clone the task definition " + old_taskdef_arn)
+            self._print_error(
+                "Unable to clone the task definition " + old_taskdef_arn)
             return None
 
         service = self.redeploy_service_task(cluster_name,
@@ -87,22 +97,26 @@ class ECSClient(object):
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
         """
-        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(
+            cluster_name, service_arn)
         if old_taskdef_arn is None:
-            self._print_error("No task definition found for service " + service_arn)
+            self._print_error(
+                "No task definition found for service " + service_arn)
             return None
 
         new_taskdef_arn = self.clone_task(old_taskdef_arn,
                                           container_name,
                                           image_name)
         if new_taskdef_arn is None:
-            self._print_error("Unable to clone the task definition " + old_taskdef_arn)
+            self._print_error(
+                "Unable to clone the task definition " + old_taskdef_arn)
             return None
 
         # Deregister the old task definition
         self.deregister_task_definition(old_taskdef_arn)
 
-        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        service = self.update_service(
+            cluster_name, service_arn, new_taskdef_arn)
         if service is None:
             self._print_error("Unable to update the service %s with task %s"
                               % (service_arn, new_taskdef_arn))
@@ -116,7 +130,8 @@ class ECSClient(object):
         try:
             response = self.ecs_client.list_services(cluster=cluster_name)
         except Exception:
-            self._print_error("Error getting list of services for %s" % cluster_name)
+            self._print_error(
+                "Error getting list of services for %s" % cluster_name)
             return None
         return response['serviceArns']
 
@@ -142,19 +157,22 @@ class ECSClient(object):
             if service['serviceArn'] == service_arn:
                 return service
 
-        self._print_error("No service for cluster %s matches %s" % (cluster_name, service_arn))
+        self._print_error("No service for cluster %s matches %s" %
+                          (cluster_name, service_arn))
         return None
 
     def get_task_family(self, taskdef_arn):
         """ Returns the family of a task definition
         """
-        response = self.ecs_client.describe_task_definition(taskDefinition=taskdef_arn)
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=taskdef_arn)
         if response is None or 'taskDefinition' not in response:
             return ''
         return response['taskDefinition']['family']
 
     def get_task_arn(self, cluster_name, service_name):
-        response = self.ecs_client.list_tasks(cluster=cluster_name, serviceName=service_name)
+        response = self.ecs_client.list_tasks(
+            cluster=cluster_name, serviceName=service_name)
         if response is None or 'taskArns' not in response:
             return ''
         return response['taskArns'][0]
@@ -178,7 +196,8 @@ class ECSClient(object):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
         """
-        response = self.ecs_client.describe_task_definition(taskDefinition=task_definition_arn)
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=task_definition_arn)
 
         if response is None or 'taskDefinition' not in response:
             return None
@@ -219,7 +238,8 @@ class ECSClient(object):
         """ Deregisters the specified task definition. Returns the task
             definition if successful, None otherwise
         """
-        response = self.ecs_client.deregister_task_definition(taskDefinition=task_definition_arn)
+        response = self.ecs_client.deregister_task_definition(
+            taskDefinition=task_definition_arn)
         if response is None or 'taskDefinition' not in response \
                 or response['taskDefinition'].get('status', None) != 'INACTIVE':
             return None
@@ -232,7 +252,8 @@ class ECSClient(object):
             arns only vary by the revision, they will have the same family
             Returns the stopped tasks if successful, None otherwise
         """
-        response = self.ecs_client.describe_task_definition(taskDefinition=task_definition)
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=task_definition)
 
         if response is None or 'taskDefinition' not in response:
             return None
@@ -249,7 +270,8 @@ class ECSClient(object):
         stopped = []
 
         for task_arn in response['taskArns']:
-            response = self.ecs_client.stop_task(cluster=cluster_name, task=task_arn)
+            response = self.ecs_client.stop_task(
+                cluster=cluster_name, task=task_arn)
 
             if response is None or 'task' not in response:
                 self._print_error("Could not stop task %s" % task_arn)
@@ -262,7 +284,8 @@ class ECSClient(object):
         """ Starts a new task for the task_definition. Returns the started task
             if successful, None otherwise.
         """
-        response = self.ecs_client.run_task(cluster=cluster_name, taskDefinition=task_definition)
+        response = self.ecs_client.run_task(
+            cluster=cluster_name, taskDefinition=task_definition)
 
         if response is None or 'tasks' not in response \
                 or len(response['tasks']) == 0:
@@ -273,7 +296,8 @@ class ECSClient(object):
     def ssh_to_service(self, cluster_name, service_arn, task_arn, ssh_user, ssh_key_dir, service_cmd):
         service = self.get_service(cluster_name, service_arn)
         if service is None:
-            self._print_error("Could not find service %s in cluster %s" % (service_arn, cluster))
+            self._print_error(
+                "Could not find service %s in cluster %s" % (service_arn, cluster))
             return None
 
         if not task_arn:
@@ -287,7 +311,16 @@ class ECSClient(object):
         pem_file = self._build_pem_path(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec -it %s %s' % (container_id, service_cmd)
+        docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
+
+        print("==========================================================")
+        print(' Container Id {}'.format(container_id))
+        print(' Service Command {}'.format(service_cmd))
+        print(' SSH User {}'.format(ssh_user))
+        print(' IP Address {}'.format(ip_address))
+        print(' Key {}'.format(pem_file))
+        print(' Docker Command {}'.format(docker_cmd))
+        print("==========================================================")
 
         ssh_client = paramiko.SSHClient()
         ssh_client.load_system_host_keys()
@@ -295,21 +328,41 @@ class ECSClient(object):
         ssh_client.connect(hostname=ip_address,
                            username=ssh_user,
                            key_filename=pem_file)
-#        channel = ssh_client.get_transport().open_session()
-#        posix_shell(channel)
 
-        print(docker_cmd)
-#        stdin, stdout, stderr = ssh_client.exec_command(docker_cmd)
-        stdin, stdout, stderr = ssh_client.exec_command('docker container ls')
-        print(stdout.read())
-
+        chan = ssh_client.invoke_shell()
+        oldtty = termios.tcgetattr(sys.stdin)
+        chan.send("{}\r\n".format(docker_cmd))
+        try:
+            tty.setraw(sys.stdin.fileno())
+            tty.setcbreak(sys.stdin.fileno())
+            chan.settimeout(0.0)
+            while True:
+                r, w, e = select.select([chan, sys.stdin], [], [])
+                if chan in r:
+                    try:
+                        x = u(chan.recv(1024))
+                        if len(x) == 0:
+                            sys.stdout.write("\r\n*** EOF\r\n")
+                            break
+                        sys.stdout.write(x)
+                        sys.stdout.flush()
+                    except socket.timeout:
+                        pass
+                if sys.stdin in r:
+                    x = sys.stdin.read(1)
+                    if len(x) == 0:
+                        break
+                    chan.send(x)
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, oldtty)
+        chan.close()
         ssh_client.close()
-
         return None
 
     def _get_ec2_arn(self, cluster_name, service_arn, task_arn):
         if service_arn:
-            instances = self._get_service_container_instances(cluster_name, service_arn, task_arn)
+            instances = self._get_service_container_instances(
+                cluster_name, service_arn, task_arn)
         else:
             instances = self._get_container_instances(cluster_name)
         with_tasks = [i for i in instances if i['runningTasksCount'] > 0]
@@ -322,13 +375,15 @@ class ECSClient(object):
         if not task_arn:
             task_arn = self.get_task_arn(cluster_name, service_arn)
 
-        tasks = self.ecs_client.describe_tasks(cluster=cluster_name, tasks=[task_arn])['tasks']
-        containers = [x['containerInstanceArn'] for x in tasks ]
+        tasks = self.ecs_client.describe_tasks(
+            cluster=cluster_name, tasks=[task_arn])['tasks']
+        containers = [x['containerInstanceArn'] for x in tasks]
         return self.ecs_client.describe_container_instances(cluster=cluster_name,
                                                             containerInstances=containers)['containerInstances']
 
     def _get_container_instances(self, cluster_name):
-        arns = self.ecs_client.list_container_instances(cluster=cluster_name)['containerInstanceArns']
+        arns = self.ecs_client.list_container_instances(
+            cluster=cluster_name)['containerInstanceArns']
         return self.ecs_client.describe_container_instances(cluster=cluster_name,
                                                             containerInstances=arns)['containerInstances']
 
@@ -356,5 +411,3 @@ class ECSClient(object):
         response = self.ec2_client.describe_instances(InstanceIds=ids)
         details = response['Reservations'][0]['Instances'][0]
         return details
-
-
