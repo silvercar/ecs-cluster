@@ -117,11 +117,12 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
 @click.option("--task-arn", required=False)
-@click.option("--rails", help='enter rails console', required=False, default=False)
+@click.option("--rails/--no-rails", help='enter rails console', required=False, default=False)
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
 @click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option("--chamber-env", required=False)
 @click.pass_context
-def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir):
+def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir, chamber_env):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
 
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
@@ -131,7 +132,11 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
                    cluster, err=True)
         sys.exit(1)
 
-    service_cmd = '/bin/bash'
+    service_cmd = 'rails console' if rails else '/bin/bash'
+
+    if chamber_env:
+        service_cmd = 'chamber exec {} -- {}'.format(chamber_env, service_cmd)
+
     ecs_client.ssh_to_service(cluster, service_arn,
                               task_arn, user, keydir, service_cmd)
 
