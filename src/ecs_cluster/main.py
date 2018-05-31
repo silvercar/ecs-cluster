@@ -117,7 +117,7 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
 @click.option("--task-arn", required=False)
-@click.option("--rails/--no-rails", help='enter rails console', required=False, default=False)
+@click.option("--rails", help='enter rails console', is_flag=True, required=False, default=False)
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
 @click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
 @click.option("--chamber-env", required=False)
