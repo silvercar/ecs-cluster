@@ -140,8 +140,15 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
     ecs_client.ssh_to_service(cluster, service_arn,
                               task_arn, user, keydir, service_cmd)
 
+@click.command('docker-stats')
+@click.option("--cluster", required=True)
+@click.pass_context
+def docker_stats(ctx, cluster):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+    ecs_client.docker_stats(cluster)
 
 cli.add_command(list_services)
 cli.add_command(update_image)
 cli.add_command(update_taskdef)
 cli.add_command(ssh_service)
+cli.add_command(docker_stats)

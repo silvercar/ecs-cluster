@@ -286,12 +286,17 @@ class ECSClient(object):
         """
         response = self.ecs_client.run_task(
             cluster=cluster_name, taskDefinition=task_definition)
-
         if response is None or 'tasks' not in response \
                 or len(response['tasks']) == 0:
             return None
-
         return response['tasks'][0]
+
+    def docker_stats(self, cluster_name):
+        arns = [ x for x in self.ecs_client.list_container_instances(cluster=cluster_name)["containerInstanceArns"]]
+        hosts = self.ecs_client.describe_container_instances(cluster = cluster_name, containerInstances = arns)
+        hostIds = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(cluster = cluster_name, containerInstances = arns)["containerInstances"]]
+        print(hostIds)
+        pass
 
     def ssh_to_service(self, cluster_name, service_arn, task_arn, ssh_user, ssh_key_dir, service_cmd):
         service = self.get_service(cluster_name, service_arn)
