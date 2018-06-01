@@ -291,12 +291,30 @@ class ECSClient(object):
             return None
         return response['tasks'][0]
 
-    def docker_stats(self, cluster_name):
-        arns = [ x for x in self.ecs_client.list_container_instances(cluster=cluster_name)["containerInstanceArns"]]
-        hosts = self.ecs_client.describe_container_instances(cluster = cluster_name, containerInstances = arns)
-        hostIds = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(cluster = cluster_name, containerInstances = arns)["containerInstances"]]
-        print(hostIds)
-        pass
+    def docker_stats(self, cluster_name, ssh_keydir, user):
+        arns = [x for x in self.ecs_client.list_container_instances(
+            cluster=cluster_name)["containerInstanceArns"]]
+        hostIds = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
+            cluster=cluster_name, containerInstances=arns)["containerInstances"]]
+        hosts = [self._get_ec2_details(x) for x in hostIds]
+
+        for host in hosts:
+            ip_address = host['PublicIpAddress']
+            key_name = host['KeyName']
+            pem_file = self._build_pem_path(ssh_keydir, key_name)
+            command = "docker stats --no-stream --no-trunc"
+            ssh_client = paramiko.SSHClient()
+            ssh_client.load_system_host_keys()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+            ssh_client.connect(hostname=ip_address,
+                               username=user,
+                               key_filename=pem_file)
+
+            print('Host ' + ip_address)
+            stdin, stdout, stderr = ssh_client.exec_command(command)
+            for line in stdout:
+                print(line.strip('\n'))
+            ssh_client.close()
 
     def ssh_to_service(self, cluster_name, service_arn, task_arn, ssh_user, ssh_key_dir, service_cmd):
         service = self.get_service(cluster_name, service_arn)
