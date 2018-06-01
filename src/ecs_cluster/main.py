@@ -141,7 +141,18 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
                               task_arn, user, keydir, service_cmd)
 
 
+@click.command('docker-stats')
+@click.option("--cluster", required=True)
+@click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
+@click.pass_context
+def docker_stats(ctx, cluster, keydir, user):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+    ecs_client.docker_stats(cluster, keydir, user)
+
+
 cli.add_command(list_services)
 cli.add_command(update_image)
 cli.add_command(update_taskdef)
 cli.add_command(ssh_service)
+cli.add_command(docker_stats)
