@@ -299,7 +299,11 @@ class ECSClient(object):
         hosts = [self._get_ec2_details(x) for x in hostIds]
 
         for host in hosts:
-            ip_address = host['PublicIpAddress']
+            if  'PublicIpAddress' in ec2_details:
+                ip_address = host['PublicIpAddress']
+            else:
+                ip_address = host['PrivateIpAddress']
+
             key_name = host['KeyName']
             pem_file = self._build_pem_path(ssh_keydir, key_name)
             command = "docker stats --no-stream --no-trunc"
@@ -328,8 +332,10 @@ class ECSClient(object):
 
         ec2_arn = self._get_ec2_arn(cluster_name, service_arn, task_arn)
         ec2_details = self._get_ec2_details(ec2_arn)
-
-        ip_address = ec2_details['PublicIpAddress']
+        if  'PublicIpAddress' in ec2_details:
+            ip_address = ec2_details['PublicIpAddress']
+        else:
+            ip_address = ec2_details['PrivateIpAddress']
         key_name = ec2_details['KeyName']
         pem_file = self._build_pem_path(ssh_key_dir, key_name)
 
