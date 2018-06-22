@@ -15,6 +15,10 @@ to its deployment configuration/health check rules).
 
 `ecs-cluster  update-image --cluster <cluster_name> --service <ecs_service_name> --container <ecs_container_name> --image <ecr_image>`
 
+### SSHing into a contianer
+
+`ecs-cluster ssh-service --cluster cluster-name --service service-name`
+
 ### Updating a task image and restarting the task
 
 Same as above, except the tasks will be forcefully stopped first, and then replaced.

@@ -4,7 +4,9 @@ from setuptools import setup, find_packages
 install_requires = [
     'boto3',
     'click',
-    'polling'
+    'polling',
+    'requests',
+    'paramiko'
 ]
 
 test_requires = []
@@ -20,7 +22,7 @@ def read(fname):
 
 setup(
     name='ecs-cluster',
-    version='0.1.0',
+    version='0.1.3',
     author='Silvercar',
     author_email="info@silvercar.com",
     url='https://github.com/silvercar/ecs-cluster',
