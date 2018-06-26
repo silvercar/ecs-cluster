@@ -3,7 +3,16 @@ Tools for working with AWS ECS clusters.
 
 ## Installation
 
-`pip install git+https://github.com/silvercar/ecs-cluster`
+Add this to your `requirements.txt`:
+```
+--extra-index-url=https://${token}:@packagecloud.io/silvercar/python/
+```
+
+Run this:
+
+`pip install ecs-cluster==0.1.4`
+
+For more information, see https://packagecloud.io/silvercar/python
 
 ## Usage
 
@@ -41,3 +50,7 @@ Note the `--restart` flag.
 4. Commit your changes: `git commit -am 'Add some feature'`
 5. Push to the branch: `git push origin my-new-feature`
 6. Submit a pull request :D
+
+## Publishing
+
+Packages are automatically published by CircleCI to https://packagecloud.io/silvercar/python
