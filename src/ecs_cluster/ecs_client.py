@@ -341,7 +341,7 @@ class ECSClient(object):
 
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
-        system_cmd = f'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {pem_file} {ssh_user}@{ip_address} {docker_cmd}'
+        system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
         
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
