@@ -299,7 +299,7 @@ class ECSClient(object):
         hosts = [self._get_ec2_details(x) for x in hostIds]
 
         for host in hosts:
-            if  'PublicIpAddress' in ec2_details:
+            if  'PublicIpAddress' in host:
                 ip_address = host['PublicIpAddress']
             else:
                 ip_address = host['PrivateIpAddress']
@@ -341,7 +341,8 @@ class ECSClient(object):
 
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
-
+        system_cmd = f'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {pem_file} {ssh_user}@{ip_address} {docker_cmd}'
+        
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
         print(' Service Command {}'.format(service_cmd))
@@ -349,43 +350,11 @@ class ECSClient(object):
         print(' IP Address {}'.format(ip_address))
         print(' Key {}'.format(pem_file))
         print(' Docker Command {}'.format(docker_cmd))
+        print(' Full Command {}'.format(system_cmd))
         print("==========================================================")
 
-        ssh_client = paramiko.SSHClient()
-        ssh_client.load_system_host_keys()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-        ssh_client.connect(hostname=ip_address,
-                           username=ssh_user,
-                           key_filename=pem_file)
+        os.system(system_cmd)
 
-        chan = ssh_client.invoke_shell()
-        oldtty = termios.tcgetattr(sys.stdin)
-        chan.send("{}\r\n".format(docker_cmd))
-        try:
-            tty.setraw(sys.stdin.fileno())
-            tty.setcbreak(sys.stdin.fileno())
-            chan.settimeout(0.0)
-            while True:
-                r, w, e = select.select([chan, sys.stdin], [], [])
-                if chan in r:
-                    try:
-                        x = u(chan.recv(1024))
-                        if len(x) == 0:
-                            sys.stdout.write("\r\n*** EOF\r\n")
-                            break
-                        sys.stdout.write(x)
-                        sys.stdout.flush()
-                    except socket.timeout:
-                        pass
-                if sys.stdin in r:
-                    x = sys.stdin.read(1)
-                    if len(x) == 0:
-                        break
-                    chan.send(x)
-        finally:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, oldtty)
-        chan.close()
-        ssh_client.close()
         return None
 
     def _get_ec2_arn(self, cluster_name, service_arn, task_arn):
