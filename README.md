@@ -41,7 +41,7 @@ Note the `--restart` flag.
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Test your changes:
     ```bash
-    $ virtualenv venv
+    $ virtualenv venv --python=python3
     $ . venv/bin/activate
     $ pip install --editable .
     $ ecs-cluster
