@@ -340,7 +340,7 @@ class ECSClient(object):
         pem_file = self._build_pem_path(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
+        docker_cmd = 'docker exec -e COLUMNS="`tput cols`" -e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
         
         print("==========================================================")
