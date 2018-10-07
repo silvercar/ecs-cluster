@@ -192,6 +192,11 @@ class ECSClient(object):
 
         return new_task_definition_arn
 
+    def get_task_images(self, task_definition_arn):
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=task_definition_arn)
+        return [ { 'container': x['name'] , 'image': x['image'] } for x in response['taskDefinition']['containerDefinitions']]
+
     def clone_task(self, task_definition_arn, container_name, image_name):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
@@ -409,3 +414,4 @@ class ECSClient(object):
         response = self.ec2_client.describe_instances(InstanceIds=ids)
         details = response['Reservations'][0]['Instances'][0]
         return details
+

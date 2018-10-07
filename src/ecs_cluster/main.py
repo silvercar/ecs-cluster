@@ -111,6 +111,16 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
         click.echo('Success')
     click.echo('')
 
+@click.command('get-images')
+@click.option("--cluster", required=True)
+@click.option("--service", required=True)
+@click.option("--container", required=False)
+@click.pass_context
+def get_image(ctx, cluster, service, container):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+    task_arn = ecs_client.get_task_definition_arn(cluster, service)
+    response = ecs_client.get_task_images(task_arn)
+    print(json.dumps(response))
 
 @click.command('ssh-service')
 @click.option("--cluster", required=True)
@@ -131,8 +141,8 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
         click.echo('No matching service found for cluster %s' %
                    cluster, err=True)
         sys.exit(1)
-
     service_cmd = 'rails console' if rails else '/bin/bash'
+
 
     if chamber_env:
         service_cmd = 'chamber exec {} -- {}'.format(chamber_env, service_cmd)
@@ -156,3 +166,4 @@ cli.add_command(update_image)
 cli.add_command(update_taskdef)
 cli.add_command(ssh_service)
 cli.add_command(docker_stats)
+cli.add_command(get_image)
