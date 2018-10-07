@@ -116,7 +116,7 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
 @click.option("--service", required=True)
 @click.option("--container", required=False)
 @click.pass_context
-def get_image(ctx, cluster, service, container):
+def get_images(ctx, cluster, service, container):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     task_arn = ecs_client.get_task_definition_arn(cluster, service)
     response = ecs_client.get_task_images(task_arn)
@@ -166,4 +166,4 @@ cli.add_command(update_image)
 cli.add_command(update_taskdef)
 cli.add_command(ssh_service)
 cli.add_command(docker_stats)
-cli.add_command(get_image)
+cli.add_command(get_images)
