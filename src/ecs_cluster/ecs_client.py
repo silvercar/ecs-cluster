@@ -192,6 +192,11 @@ class ECSClient(object):
 
         return new_task_definition_arn
 
+    def get_task_images(self, task_definition_arn):
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=task_definition_arn)
+        return [ { 'container': x['name'] , 'image': x['image'] } for x in response['taskDefinition']['containerDefinitions']]
+
     def clone_task(self, task_definition_arn, container_name, image_name):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
@@ -340,7 +345,7 @@ class ECSClient(object):
         pem_file = self._build_pem_path(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
+        docker_cmd = 'docker exec -e COLUMNS="`tput cols`" -e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
         
         print("==========================================================")
@@ -409,3 +414,4 @@ class ECSClient(object):
         response = self.ec2_client.describe_instances(InstanceIds=ids)
         details = response['Reservations'][0]['Instances'][0]
         return details
+
