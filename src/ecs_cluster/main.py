@@ -54,11 +54,12 @@ def list_services(ctx, cluster):
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
+@click.option("--hostname", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
 @click.option("--restart", is_flag=True, default=False, help="Force task restart after update. Defaults to false.")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, container, image, restart):
+def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -72,7 +73,7 @@ def update_image(ctx, cluster, service, service_arn, container, image, restart):
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, image)
+            cluster, service_arn, container, hostname, image)
 
     if service is not None:
         click.echo('Success')
