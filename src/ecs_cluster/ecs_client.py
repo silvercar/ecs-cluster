@@ -90,7 +90,7 @@ class ECSClient(object):
         if service is not None:
             print("Success")
 
-    def update_image(self, cluster_name, service_arn, container_name, image_name):
+    def update_image(self, cluster_name, service_arn, container_name, hostname, image_name):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
@@ -197,7 +197,7 @@ class ECSClient(object):
             taskDefinition=task_definition_arn)
         return [ { 'container': x['name'] , 'image': x['image'] } for x in response['taskDefinition']['containerDefinitions']]
 
-    def clone_task(self, task_definition_arn, container_name, image_name):
+    def clone_task(self, task_definition_arn, container_name, image_name, hostname=None):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
         """
@@ -214,7 +214,8 @@ class ECSClient(object):
         for container in containers:
             if container['name'] == container_name:
                 container['image'] = image_name
-
+                if hostname is not None:
+                    container['hostname'] = hostname
         task_def['containerDefinitions'] = containers
 
         # Remove fields not required for new task def
