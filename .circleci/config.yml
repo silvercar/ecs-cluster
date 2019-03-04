@@ -34,17 +34,11 @@ jobs:
           paths:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}
-
-      - run:
-          name: Install package cloud
-          command: |
-            gem install package_cloud
-
+          
       - run:
           name: Push package
           command: |
-            package_cloud push silvercar/python/python dist/ecs_cluster-*-py2-none-any.whl
-
+            curl -F package=@$(ls -t dist/ecs_cluster-*-py2-none-any.whl) https://$GEMFURY_TOKEN@push.fury.io/silvercar/
 
 workflows:
   version: 2
