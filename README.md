@@ -3,7 +3,7 @@ Tools for working with AWS ECS clusters.
 
 ## Installation
 
-`pip install ecs-cluster --extra-index-url https://ASK_FOR_SECRET_TOKEN@repo.fury.io/silvercar/`
+`pip install ecs-cluster --extra-index-url https://pypi.fury.io/$GEMFURY_TOKEN/silvercar/`
 
 For more information, see https://gemfury.com/help/pypi-server/
 
