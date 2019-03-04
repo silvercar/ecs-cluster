@@ -1,4 +1,4 @@
-FROM circleci/ruby:2.5.1
+FROM circleci/python:3.6
 
 RUN sudo apt-get install -y python-pip
 COPY . /home/circleci/repo
