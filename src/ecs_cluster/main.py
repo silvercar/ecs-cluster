@@ -47,6 +47,11 @@ def list_services(ctx, cluster):
     click.echo('-- services for %s --' % cluster)
     for service in ecs_client.get_services(cluster) or []:
         click.echo('    %s' % service)
+        active_task_arn = ecs_client.get_task_definition_arn(cluster, service)
+        latest_task_arn = ecs_client.get_latest_task_definition_arn(cluster, service)
+        click.echo('        active: %s' % active_task_arn)
+        click.echo('        latest: %s' % latest_task_arn)
+
     click.echo('')
 
 
@@ -57,8 +62,10 @@ def list_services(ctx, cluster):
 @click.option("--container", required=True)
 @click.option("--image", required=True)
 @click.option("--restart", is_flag=True, default=False, help="Force task restart after update. Defaults to false.")
+@click.option("--latest", is_flag=True, default=False, help="Update the latest task definition, even if it's not the "
+                                                            "one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, container, image, restart):
+def update_image(ctx, cluster, service, service_arn, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -72,7 +79,7 @@ def update_image(ctx, cluster, service, service_arn, container, image, restart):
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, image)
+            cluster, service_arn, container, image, latest)
 
     if service is not None:
         click.echo('Success')

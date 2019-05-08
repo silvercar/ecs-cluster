@@ -48,8 +48,7 @@ class ECSClient(object):
 
         try:
             polling.poll(
-                lambda: self.get_service(cluster_name, service_arn)[
-                    'runningCount'] == service['desiredCount'],
+                lambda: self.get_service(cluster_name, service_arn)['runningCount'] == service['desiredCount'],
                 step=5,
                 step_function=_echo_poll_step,
                 timeout=self.timeout
@@ -68,8 +67,7 @@ class ECSClient(object):
             It will then stop the running tasks and restart them with the new
             definition.
         """
-        old_taskdef_arn = self.get_task_definition_arn(
-            cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         if old_taskdef_arn is None:
             self._print_error(
                 "No task definition found for service " + service_arn)
@@ -90,15 +88,20 @@ class ECSClient(object):
         if service is not None:
             print("Success")
 
-    def update_image(self, cluster_name, service_arn, container_name, image_name):
+    def update_image(self, cluster_name, service_arn, container_name, image_name, latest=false):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
+            Set latest=true to update the newest task definition instead of the
+            one that's currently active.
         """
-        old_taskdef_arn = self.get_task_definition_arn(
-            cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        if latest:
+            old_taskdef_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
+
+
         if old_taskdef_arn is None:
             self._print_error(
                 "No task definition found for service " + service_arn)
@@ -185,6 +188,21 @@ class ECSClient(object):
         if service is not None:
             return service['taskDefinition']
         return None
+
+    def get_latest_task_definition_arn(self, cluster_name, service_name):
+
+        active_arn = self.get_task_definition_arn(cluster_name, service_name)
+        family = self.get_task_family(active_arn)
+
+        # for task in tasks:
+        response = self.ecs_client.list_task_definitions(
+            familyPrefix=family,
+            status='ACTIVE',
+            sort='DESC'
+        )
+
+        latest_arn = response['taskDefinitionArns'][0]
+        return latest_arn
 
     def register_task_definition(self, register_kwargs):
         response = self.ecs_client.register_task_definition(**register_kwargs)
@@ -299,7 +317,7 @@ class ECSClient(object):
         hosts = [self._get_ec2_details(x) for x in hostIds]
 
         for host in hosts:
-            if  'PublicIpAddress' in host:
+            if 'PublicIpAddress' in host:
                 ip_address = host['PublicIpAddress']
             else:
                 ip_address = host['PrivateIpAddress']
@@ -332,7 +350,7 @@ class ECSClient(object):
 
         ec2_arn = self._get_ec2_arn(cluster_name, service_arn, task_arn)
         ec2_details = self._get_ec2_details(ec2_arn)
-        if  'PublicIpAddress' in ec2_details:
+        if 'PublicIpAddress' in ec2_details:
             ip_address = ec2_details['PublicIpAddress']
         else:
             ip_address = ec2_details['PrivateIpAddress']
@@ -342,7 +360,7 @@ class ECSClient(object):
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'docker exec -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
-        
+
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
         print(' Service Command {}'.format(service_cmd))
