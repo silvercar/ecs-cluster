@@ -95,7 +95,8 @@ class ECSClient:
                                              new_taskdef_arn)
         return service
 
-    def update_image(self, cluster_name, service_arn, container_name, hostname, image_name, latest=False):
+    def update_image(self, cluster_name, service_arn, container_name,
+                     hostname, image_name, latest=False):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
@@ -115,7 +116,8 @@ class ECSClient:
 
         new_taskdef_arn = self.clone_task(old_taskdef_arn,
                                           container_name,
-                                          image_name)
+                                          image_name,
+                                          hostname)
         if new_taskdef_arn is None:
             _print_error(
                 "Unable to clone the task definition " + old_taskdef_arn)
@@ -218,7 +220,8 @@ class ECSClient:
     def get_task_images(self, task_definition_arn):
         response = self.ecs_client.describe_task_definition(
             taskDefinition=task_definition_arn)
-        return [ { 'container': x['name'] , 'image': x['image'] } for x in response['taskDefinition']['containerDefinitions']]
+        return [{'container': x['name'], 'image': x['image']} for x in
+                response['taskDefinition']['containerDefinitions']]
 
     def clone_task(self, task_definition_arn, container_name, image_name, hostname=None):
         """ Clones a task and sets its image attribute. Returns the new
@@ -374,12 +377,14 @@ class ECSClient:
         pem_file = _build_pem_path(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec -e COLUMNS="`tput cols`" -e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
+        docker_cmd = 'docker exec ' \
+                     '-e COLUMNS="`tput cols`" ' \
+                     '-e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no ' \
                      '-o TCPKeepAlive=yes ' \
                      '-o ServerAliveInterval=50 -i {} {}@{} {}' \
             .format(pem_file, ssh_user, ip_address, docker_cmd)
-        
+
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
         print(' Service Command {}'.format(service_cmd))
