@@ -3,3 +3,4 @@ click
 polling
 requests
 paramiko
+pylint

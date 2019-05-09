@@ -18,18 +18,19 @@ def _get_service_arn(ecs_client, cluster, service, service_arn):
 
         matches = [arn for arn in services
                    if service == arn.split('/', 1)[1]]
-        if len(matches) > 0:
+        if not matches:
             service_arn = matches[0]
     if service_arn is None:
         service_arn = ecs_client.get_default_service_arn(cluster)
     return service_arn
 
 
+# pylint: disable=unused-argument
 def _get_cli_stdin(ctx, param, value):
     if not value and not click.get_text_stream('stdin').isatty():
         return click.get_text_stream('stdin').read().strip()
-    else:
-        return value
+
+    return value
 
 
 @click.group()
@@ -47,6 +48,11 @@ def list_services(ctx, cluster):
     click.echo('-- services for %s --' % cluster)
     for service in ecs_client.get_services(cluster) or []:
         click.echo('    %s' % service)
+        active_task_arn = ecs_client.get_task_definition_arn(cluster, service)
+        latest_task_arn = ecs_client.get_latest_task_definition_arn(cluster, service)
+        click.echo('        active: %s' % active_task_arn)
+        click.echo('        latest: %s' % latest_task_arn)
+
     click.echo('')
 
 
@@ -57,9 +63,12 @@ def list_services(ctx, cluster):
 @click.option("--hostname", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
-@click.option("--restart", is_flag=True, default=False, help="Force task restart after update. Defaults to false.")
+@click.option("--restart", is_flag=True, default=False,
+              help="Force task restart after update. Defaults to false.")
+@click.option("--latest", is_flag=True, default=False,
+              help="Update the latest task definition, even if it's not the one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart):
+def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -73,9 +82,9 @@ def update_image(ctx, cluster, service, service_arn, hostname, container, image,
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, hostname, image)
+            cluster, service_arn, container, hostname, image, latest)
 
-    if service is not None:
+    if service:
         click.echo('Success')
     click.echo('')
 
@@ -108,7 +117,7 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
                                                old_taskdef_arn,
                                                new_taskdef_arn)
 
-    if service is not None:
+    if service:
         click.echo('Success')
     click.echo('')
 
@@ -130,7 +139,8 @@ def get_images(ctx, cluster, service, container):
 @click.option("--task-arn", required=False)
 @click.option("--rails", help='enter rails console', is_flag=True, required=False, default=False)
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
-@click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option('--keydir', required=False,
+              help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
 @click.option("--chamber-env", required=False)
 @click.pass_context
 def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir, chamber_env):
@@ -142,8 +152,8 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
         click.echo('No matching service found for cluster %s' %
                    cluster, err=True)
         sys.exit(1)
-    service_cmd = 'rails console' if rails else '/bin/bash'
 
+    service_cmd = 'rails console' if rails else '/bin/bash'
 
     if chamber_env:
         service_cmd = 'chamber exec {} -- {}'.format(chamber_env, service_cmd)
@@ -154,7 +164,8 @@ def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydi
 
 @click.command('docker-stats')
 @click.option("--cluster", required=True)
-@click.option('--keydir', required=False, help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option('--keydir', required=False,
+              help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
 @click.pass_context
 def docker_stats(ctx, cluster, keydir, user):

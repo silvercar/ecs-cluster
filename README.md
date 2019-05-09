@@ -3,9 +3,7 @@ Tools for working with AWS ECS clusters.
 
 ## Installation
 
-`pip install ecs-cluster --extra-index-url https://pypi.fury.io/$GEMFURY_TOKEN/silvercar/`
-
-For more information, see https://gemfury.com/help/pypi-server/
+`pip install git+https://github.com/silvercar/ecs-cluster`
 
 ## Usage
 
@@ -17,7 +15,7 @@ to its deployment configuration/health check rules).
 
 `ecs-cluster  update-image --cluster <cluster_name> --service <ecs_service_name> --container <ecs_container_name> --image <ecr_image>`
 
-### SSHing into a contianer
+### SSHing into a container
 
 `ecs-cluster ssh-service --cluster cluster-name --service service-name`
 
@@ -43,7 +41,3 @@ Note the `--restart` flag.
 4. Commit your changes: `git commit -am 'Add some feature'`
 5. Push to the branch: `git push origin my-new-feature`
 6. Submit a pull request :D
-
-## Publishing
-
-Packages are automatically published by CircleCI to gemfury

@@ -1,27 +1,29 @@
 import os
 import boto3
+from botocore.exceptions import ClientError
 import polling
 import requests
 import paramiko
-from paramiko.py3compat import u
-import termios
-import tty
-import sys
-import select
-import socket
-from .posix_shell import posix_shell
 
 
-class ECSClient(object):
+def _print_error(msg):
+    print('Error: ' + msg)
+
+
+def _build_pem_path(key_dir, key_name):
+    home = os.environ['HOME']
+    return os.path.join(home, key_dir, '%s.pem' % key_name)
+
+
+class ECSClient:
+    """
+    Abstraction of the boto ecs client
+    """
+
     def __init__(self, timeout=60):
-        """ Abstraction of the boto ecs client
-        """
         self.ecs_client = boto3.client('ecs')
         self.ec2_client = boto3.client('ec2')
         self.timeout = timeout
-
-    def _print_error(self, msg):
-        print('Error: ' + msg)
 
     def redeploy_service_task(self, cluster_name, service_arn,
                               old_taskdef_arn, new_taskdef_arn):
@@ -36,11 +38,11 @@ class ECSClient(object):
         self.stop_tasks_similar_to_task_definition(
             cluster_name, old_taskdef_arn)
 
-        service = self.update_service(
-            cluster_name, service_arn, new_taskdef_arn)
-        if service is None:
-            self._print_error("Unable to update the service %s with task %s"
-                              % (service_arn, new_taskdef_arn))
+        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        if not service:
+            _print_error("Unable to update the service %s with task %s" %
+                         (service_arn, new_taskdef_arn))
+            return False
 
         def _echo_poll_step(step):
             print('waiting for service to restart...')
@@ -48,16 +50,21 @@ class ECSClient(object):
 
         try:
             polling.poll(
-                lambda: self.get_service(cluster_name, service_arn)[
-                    'runningCount'] == service['desiredCount'],
+                lambda: self.redeploy_poll(cluster_name, service, service_arn),
                 step=5,
                 step_function=_echo_poll_step,
                 timeout=self.timeout
             )
-            return service
+
         except polling.PollingException:
-            self._print_error("Timeout or max tries exceeded")
-            return None
+            _print_error("Timeout or max tries exceeded")
+            return False
+
+        return True
+
+    def redeploy_poll(self, cluster_name, service, service_arn):
+        running_count = self.get_service(cluster_name, service_arn)['runningCount']
+        return running_count == service['desiredCount']
 
     def redeploy_image(self, cluster_name, service_arn, container_name, image_name):
         """ Redeploys a service while updating the image in its task
@@ -68,69 +75,72 @@ class ECSClient(object):
             It will then stop the running tasks and restart them with the new
             definition.
         """
-        old_taskdef_arn = self.get_task_definition_arn(
-            cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         if old_taskdef_arn is None:
-            self._print_error(
+            _print_error(
                 "No task definition found for service " + service_arn)
-            return None
+            return False
 
         new_taskdef_arn = self.clone_task(old_taskdef_arn,
                                           container_name,
                                           image_name)
         if new_taskdef_arn is None:
-            self._print_error(
+            _print_error(
                 "Unable to clone the task definition " + old_taskdef_arn)
-            return None
+            return False
 
         service = self.redeploy_service_task(cluster_name,
                                              service_arn,
                                              old_taskdef_arn,
                                              new_taskdef_arn)
-        if service is not None:
-            print("Success")
+        return service
 
-    def update_image(self, cluster_name, service_arn, container_name, hostname, image_name):
+    def update_image(self, cluster_name, service_arn, container_name,
+                     hostname, image_name, latest=False):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
+            Set latest=true to update the newest task definition instead of the
+            one that's currently active.
         """
-        old_taskdef_arn = self.get_task_definition_arn(
-            cluster_name, service_arn)
+        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        if latest:
+            old_taskdef_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
+
         if old_taskdef_arn is None:
-            self._print_error(
+            _print_error(
                 "No task definition found for service " + service_arn)
-            return None
+            return False
 
         new_taskdef_arn = self.clone_task(old_taskdef_arn,
                                           container_name,
-                                          image_name)
+                                          image_name,
+                                          hostname)
         if new_taskdef_arn is None:
-            self._print_error(
+            _print_error(
                 "Unable to clone the task definition " + old_taskdef_arn)
-            return None
+            return False
 
         # Deregister the old task definition
         self.deregister_task_definition(old_taskdef_arn)
 
-        service = self.update_service(
-            cluster_name, service_arn, new_taskdef_arn)
-        if service is None:
-            self._print_error("Unable to update the service %s with task %s"
-                              % (service_arn, new_taskdef_arn))
+        service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
+        if not service:
+            _print_error("Unable to update the service %s with task %s"
+                         % (service_arn, new_taskdef_arn))
+            return False
 
-        if service is not None:
-            print("Success")
+        return True
 
     def get_services(self, cluster_name):
         """ Returns the ARN of all services found for the cluster
         """
         try:
             response = self.ecs_client.list_services(cluster=cluster_name)
-        except Exception:
-            self._print_error(
+        except ClientError:
+            _print_error(
                 "Error getting list of services for %s" % cluster_name)
             return None
         return response['serviceArns']
@@ -140,9 +150,9 @@ class ECSClient(object):
         """
         try:
             response = self.ecs_client.list_services(cluster=cluster_name)
-        except Exception as ex:
+        except ClientError:
             return None
-        if response is None or len(response['serviceArns']) == 0:
+        if response is None or not response['serviceArns']:
             return None
         return response['serviceArns'][0]
 
@@ -151,14 +161,14 @@ class ECSClient(object):
         """
         response = self.ecs_client.describe_services(cluster=cluster_name,
                                                      services=[service_arn])
-        if response is None or len(response['services']) == 0:
+        if response is None or not response['services']:
             return None
         for service in response['services']:
             if service['serviceArn'] == service_arn:
                 return service
 
-        self._print_error("No service for cluster %s matches %s" %
-                          (cluster_name, service_arn))
+        _print_error("No service for cluster %s matches %s" %
+                     (cluster_name, service_arn))
         return None
 
     def get_task_family(self, taskdef_arn):
@@ -186,6 +196,21 @@ class ECSClient(object):
             return service['taskDefinition']
         return None
 
+    def get_latest_task_definition_arn(self, cluster_name, service_name):
+
+        active_arn = self.get_task_definition_arn(cluster_name, service_name)
+        family = self.get_task_family(active_arn)
+
+        # for task in tasks:
+        response = self.ecs_client.list_task_definitions(
+            familyPrefix=family,
+            status='ACTIVE',
+            sort='DESC'
+        )
+
+        latest_arn = response['taskDefinitionArns'][0]
+        return latest_arn
+
     def register_task_definition(self, register_kwargs):
         response = self.ecs_client.register_task_definition(**register_kwargs)
         new_task_definition_arn = response['taskDefinition']['taskDefinitionArn']
@@ -195,7 +220,8 @@ class ECSClient(object):
     def get_task_images(self, task_definition_arn):
         response = self.ecs_client.describe_task_definition(
             taskDefinition=task_definition_arn)
-        return [ { 'container': x['name'] , 'image': x['image'] } for x in response['taskDefinition']['containerDefinitions']]
+        return [{'container': x['name'], 'image': x['image']} for x in
+                response['taskDefinition']['containerDefinitions']]
 
     def clone_task(self, task_definition_arn, container_name, image_name, hostname=None):
         """ Clones a task and sets its image attribute. Returns the new
@@ -236,9 +262,9 @@ class ECSClient(object):
                                                   taskDefinition=task_definition_arn)
         if response is None or 'service' not in response \
                 or response['service']['status'] != 'ACTIVE':
-            return None
+            return False
 
-        return response['service']
+        return True
 
     def deregister_task_definition(self, task_definition_arn):
         """ Deregisters the specified task definition. Returns the task
@@ -270,7 +296,7 @@ class ECSClient(object):
                                               family=family,
                                               desiredStatus='RUNNING')
         if response is None or 'taskArns' not in response:
-            self._print_error("No running tasks found")
+            _print_error("No running tasks found")
             return None
 
         stopped = []
@@ -280,7 +306,7 @@ class ECSClient(object):
                 cluster=cluster_name, task=task_arn)
 
             if response is None or 'task' not in response:
-                self._print_error("Could not stop task %s" % task_arn)
+                _print_error("Could not stop task %s" % task_arn)
 
             stopped.append(response['task'])
 
@@ -293,25 +319,26 @@ class ECSClient(object):
         response = self.ecs_client.run_task(
             cluster=cluster_name, taskDefinition=task_definition)
         if response is None or 'tasks' not in response \
-                or len(response['tasks']) == 0:
+                or not response['tasks']:
             return None
         return response['tasks'][0]
 
+    # pylint: disable=too-many-locals
     def docker_stats(self, cluster_name, ssh_keydir, user):
         arns = [x for x in self.ecs_client.list_container_instances(
             cluster=cluster_name)["containerInstanceArns"]]
-        hostIds = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
+        host_ids = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
             cluster=cluster_name, containerInstances=arns)["containerInstances"]]
-        hosts = [self._get_ec2_details(x) for x in hostIds]
+        hosts = [self._get_ec2_details(x) for x in host_ids]
 
         for host in hosts:
-            if  'PublicIpAddress' in host:
+            if 'PublicIpAddress' in host:
                 ip_address = host['PublicIpAddress']
             else:
                 ip_address = host['PrivateIpAddress']
 
             key_name = host['KeyName']
-            pem_file = self._build_pem_path(ssh_keydir, key_name)
+            pem_file = _build_pem_path(ssh_keydir, key_name)
             command = "docker stats --no-stream --no-trunc"
             ssh_client = paramiko.SSHClient()
             ssh_client.load_system_host_keys()
@@ -321,16 +348,20 @@ class ECSClient(object):
                                key_filename=pem_file)
 
             print('Host ' + ip_address)
+
+            # pylint: disable=unused-variable
             stdin, stdout, stderr = ssh_client.exec_command(command)
             for line in stdout:
                 print(line.strip('\n'))
             ssh_client.close()
 
-    def ssh_to_service(self, cluster_name, service_arn, task_arn, ssh_user, ssh_key_dir, service_cmd):
+    # pylint: disable=too-many-locals
+    def ssh_to_service(self, cluster_name, service_arn, task_arn,
+                       ssh_user, ssh_key_dir, service_cmd):
         service = self.get_service(cluster_name, service_arn)
         if service is None:
-            self._print_error(
-                "Could not find service %s in cluster %s" % (service_arn, cluster))
+            _print_error(
+                "Could not find service %s in cluster %s" % (service_arn, cluster_name))
             return None
 
         if not task_arn:
@@ -338,17 +369,22 @@ class ECSClient(object):
 
         ec2_arn = self._get_ec2_arn(cluster_name, service_arn, task_arn)
         ec2_details = self._get_ec2_details(ec2_arn)
-        if  'PublicIpAddress' in ec2_details:
+        if 'PublicIpAddress' in ec2_details:
             ip_address = ec2_details['PublicIpAddress']
         else:
             ip_address = ec2_details['PrivateIpAddress']
         key_name = ec2_details['KeyName']
-        pem_file = self._build_pem_path(ssh_key_dir, key_name)
+        pem_file = _build_pem_path(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec -e COLUMNS="`tput cols`" -e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
-        system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
-        
+        docker_cmd = 'docker exec ' \
+                     '-e COLUMNS="`tput cols`" ' \
+                     '-e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
+        system_cmd = 'ssh -t -o StrictHostKeyChecking=no ' \
+                     '-o TCPKeepAlive=yes ' \
+                     '-o ServerAliveInterval=50 -i {} {}@{} {}' \
+            .format(pem_file, ssh_user, ip_address, docker_cmd)
+
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
         print(' Service Command {}'.format(service_cmd))
@@ -382,29 +418,34 @@ class ECSClient(object):
         tasks = self.ecs_client.describe_tasks(
             cluster=cluster_name, tasks=[task_arn])['tasks']
         containers = [x['containerInstanceArn'] for x in tasks]
-        return self.ecs_client.describe_container_instances(cluster=cluster_name,
-                                                            containerInstances=containers)['containerInstances']
+        response = self.ecs_client.describe_container_instances(
+            cluster=cluster_name,
+            containerInstances=containers
+        )
+        return response['containerInstances']
 
     def _get_container_instances(self, cluster_name):
         arns = self.ecs_client.list_container_instances(
             cluster=cluster_name)['containerInstanceArns']
-        return self.ecs_client.describe_container_instances(cluster=cluster_name,
-                                                            containerInstances=arns)['containerInstances']
+        response = self.ecs_client.describe_container_instances(
+            cluster=cluster_name,
+            containerInstances=arns
+        )
 
-    def _build_pem_path(self, key_dir, key_name):
-        home = os.environ['HOME']
-        return os.path.join(home, key_dir, '%s.pem' % key_name)
+        return response['containerInstances']
 
-    def _find_container_id(self, ip_address, task_arn):
+    @staticmethod
+    def _find_container_id(ip_address, task_arn):
         """
-        Query the ECS agent to obtain the local docker container id which is needed during the docker exec phase
+        Query the ECS agent to obtain the local docker container id
+        which is needed during the docker exec phase
         """
         url = 'http://%s:51678/v1/tasks' % ip_address
         response = requests.get(url=url)
         data = response.json()
         tasks = [task for task in data['Tasks'] if task['Arn'] == task_arn]
         if not tasks:
-            self._print_error("No container found for task %s" % task_arn)
+            _print_error("No container found for task %s" % task_arn)
             return None
         # There should only be 1 task matching the task_arn
         # This also assumes there is 1 container per task, maybe that's not always true?
@@ -415,4 +456,3 @@ class ECSClient(object):
         response = self.ec2_client.describe_instances(InstanceIds=ids)
         details = response['Reservations'][0]['Instances'][0]
         return details
-
