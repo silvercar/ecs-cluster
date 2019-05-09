@@ -60,6 +60,7 @@ def list_services(ctx, cluster):
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--service-arn", required=False)
+@click.option("--hostname", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
 @click.option("--restart", is_flag=True, default=False,
@@ -67,7 +68,7 @@ def list_services(ctx, cluster):
 @click.option("--latest", is_flag=True, default=False,
               help="Update the latest task definition, even if it's not the one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, container, image, restart, latest):
+def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
 
@@ -81,7 +82,7 @@ def update_image(ctx, cluster, service, service_arn, container, image, restart, 
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, image, latest)
+            cluster, service_arn, container, hostname, image, latest)
 
     if service:
         click.echo('Success')
@@ -120,6 +121,16 @@ def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
         click.echo('Success')
     click.echo('')
 
+@click.command('get-images')
+@click.option("--cluster", required=True)
+@click.option("--service", required=True)
+@click.option("--container", required=False)
+@click.pass_context
+def get_images(ctx, cluster, service, container):
+    ecs_client = ECSClient(timeout=ctx.obj['timeout'])
+    task_arn = ecs_client.get_task_definition_arn(cluster, service)
+    response = ecs_client.get_task_images(task_arn)
+    print(json.dumps(response))
 
 @click.command('ssh-service')
 @click.option("--cluster", required=True)
@@ -167,3 +178,4 @@ cli.add_command(update_image)
 cli.add_command(update_taskdef)
 cli.add_command(ssh_service)
 cli.add_command(docker_stats)
+cli.add_command(get_images)
