@@ -112,8 +112,12 @@ class ECSClient(object):
                 "Unable to clone the task definition " + old_taskdef_arn)
             return None
 
-        # Deregister the old task definition
-        self.deregister_task_definition(old_taskdef_arn)
+        family = self._get_taskdef_family_from_taskdef_arn(old_taskdef_arn)
+        latest_taskdef_arn = self._get_latest_taskdef_arn_from_family(family)
+
+        # Deregister the old task definition ONLY IF it is not the latest revision
+        if latest_taskdef_arn != old_taskdef_arn:
+            self.deregister_task_definition(old_taskdef_arn)
 
         service = self.update_service(
             cluster_name, service_arn, new_taskdef_arn)
@@ -348,7 +352,7 @@ class ECSClient(object):
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'docker exec -e COLUMNS="`tput cols`" -e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=50 -i {} {}@{} {}'.format(pem_file, ssh_user, ip_address, docker_cmd)
-        
+
         print("==========================================================")
         print(' Container Id {}'.format(container_id))
         print(' Service Command {}'.format(service_cmd))
@@ -416,3 +420,25 @@ class ECSClient(object):
         details = response['Reservations'][0]['Instances'][0]
         return details
 
+    def _get_taskdef_family_from_taskdef_arn(self, task_definition_arn):
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=task_definition_arn)
+
+        if response is None or 'taskDefinition' not in response:
+            self._print_error("There was an error describing the task definition: %s" % task_definition_arn)
+            return None
+
+        family = response['taskDefinition']['family']
+        return family
+
+    def _get_latest_taskdef_arn_from_family(self, family):
+        response = self.ecs_client.describe_task_definition(
+            taskDefinition=family
+        ).get('taskDefinition')
+        if response is None or 'taskDefinition' not in response:
+            self._print_error("There was an error getting the latest task definition for the family: %s" % family)
+            return None
+
+        latest_taskdef_arn = response['taskDefinition']['taskDefinitionArn']
+
+        return latest_taskdef_arn
