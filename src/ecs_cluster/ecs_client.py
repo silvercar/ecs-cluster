@@ -106,8 +106,9 @@ class ECSClient:
             one that's currently active.
         """
         old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
+        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
         if latest:
-            old_taskdef_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
+            old_taskdef_arn = latest_task_definition_arn
 
         if old_taskdef_arn is None:
             _print_error(
@@ -123,8 +124,9 @@ class ECSClient:
                 "Unable to clone the task definition " + old_taskdef_arn)
             return False
 
-        # Deregister the old task definition
-        self.deregister_task_definition(old_taskdef_arn)
+        # Deregister the old task definition ONLY IF it is not the latest revision
+        if old_taskdef_arn != latest_task_definition_arn:
+            self.deregister_task_definition(old_taskdef_arn)
 
         service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
         if not service:
