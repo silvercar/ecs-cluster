@@ -31,8 +31,9 @@ Note the `--restart` flag.
 1. Branch off of master, so make sure you're on master first: `git checkout master`
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Test your changes:
+    (From the root of the repository, run: )
     ```bash
-    $ virtualenv venv --python=python3
+    $ virtualenv venv --python=python3.6
     $ . venv/bin/activate
     $ pip install --editable .
     $ ecs-cluster

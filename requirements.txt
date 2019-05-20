@@ -4,3 +4,4 @@ polling
 requests
 paramiko
 pylint
+urllib3==1.24
