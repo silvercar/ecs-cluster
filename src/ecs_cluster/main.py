@@ -54,7 +54,6 @@ def list_services(ctx, cluster):
 @click.command('update-image', context_settings=dict(max_content_width=120))
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
-@click.option("--service-arn", required=False)
 @click.option("--hostname", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
