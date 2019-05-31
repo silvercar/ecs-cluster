@@ -147,17 +147,6 @@ class ECSClient:
             return None
         return response['serviceArns']
 
-    def get_default_service_arn(self, cluster_name):
-        """ Returns the ARN of the first service found for the cluster
-        """
-        try:
-            response = self.ecs_client.list_services(cluster=cluster_name)
-        except ClientError:
-            return None
-        if response is None or not response['serviceArns']:
-            return None
-        return response['serviceArns'][0]
-
     def get_service(self, cluster_name, service_arn):
         """ Returns the service object matching the service ARN
         """

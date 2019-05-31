@@ -2,28 +2,23 @@ from __future__ import print_function
 
 import json
 import sys
-
 import click
 
 from .ecs_client import ECSClient
 
-
-def _get_service_arn(ecs_client, cluster, service, service_arn):
+def _get_service_arn(ecs_client, cluster, service):
+    service_arn = None
     if service is not None:
         services = ecs_client.get_services(cluster)
         if services is None:
             click.echo(
                 'Could not get ECS services. Check AWS credentials', err=True)
             sys.exit(1)
-
         matches = [arn for arn in services
                    if service == arn.split('/', 1)[1]]
-        if not matches:
+        if matches:
             service_arn = matches[0]
-    if service_arn is None:
-        service_arn = ecs_client.get_default_service_arn(cluster)
     return service_arn
-
 
 # pylint: disable=unused-argument
 def _get_cli_stdin(ctx, param, value):
@@ -59,7 +54,6 @@ def list_services(ctx, cluster):
 @click.command('update-image', context_settings=dict(max_content_width=120))
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
-@click.option("--service-arn", required=False)
 @click.option("--hostname", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
@@ -68,9 +62,9 @@ def list_services(ctx, cluster):
 @click.option("--latest", is_flag=True, default=False,
               help="Update the latest task definition, even if it's not the one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart, latest):
+def update_image(ctx, cluster, service, hostname, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
-    service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+    service_arn = _get_service_arn(ecs_client, cluster, service)
 
     if service_arn is None:
         click.echo('No matching service found for cluster %s' %
@@ -92,12 +86,11 @@ def update_image(ctx, cluster, service, service_arn, hostname, container, image,
 @click.command('update-taskdef')
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
-@click.option("--service-arn", required=False)
 @click.argument("taskdef_text", callback=_get_cli_stdin, required=False)
 @click.pass_context
-def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
+def update_taskdef(ctx, cluster, service, taskdef_text):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
-    service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+    service_arn = _get_service_arn(ecs_client, cluster, service)
 
     if service_arn is None:
         click.echo('No matching service found for cluster %s' %
@@ -135,7 +128,6 @@ def get_images(ctx, cluster, service, container):
 @click.command('ssh-service')
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
-@click.option("--service-arn", required=False)
 @click.option("--task-arn", required=False)
 @click.option("--rails", help='enter rails console', is_flag=True, required=False, default=False)
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
@@ -143,10 +135,10 @@ def get_images(ctx, cluster, service, container):
               help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
 @click.option("--chamber-env", required=False)
 @click.pass_context
-def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir, chamber_env):
+def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, chamber_env):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
 
-    service_arn = _get_service_arn(ecs_client, cluster, service, service_arn)
+    service_arn = _get_service_arn(ecs_client, cluster, service)
 
     if service_arn is None:
         click.echo('No matching service found for cluster %s' %
