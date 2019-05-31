@@ -17,7 +17,7 @@ def _get_service_arn(ecs_client, cluster, service):
             sys.exit(1)
         matches = [arn for arn in services
                    if service == arn.split('/', 1)[1]]
-        if len(matches) > 0:
+        if matches:
             service_arn = matches[0]
     return service_arn
 
