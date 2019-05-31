@@ -64,7 +64,7 @@ def list_services(ctx, cluster):
 @click.option("--latest", is_flag=True, default=False,
               help="Update the latest task definition, even if it's not the one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, service_arn, hostname, container, image, restart, latest):
+def update_image(ctx, cluster, service, hostname, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service)
 
@@ -90,7 +90,7 @@ def update_image(ctx, cluster, service, service_arn, hostname, container, image,
 @click.option("--service", required=False)
 @click.argument("taskdef_text", callback=_get_cli_stdin, required=False)
 @click.pass_context
-def update_taskdef(ctx, cluster, service, service_arn, taskdef_text):
+def update_taskdef(ctx, cluster, service, taskdef_text):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service)
 
@@ -137,7 +137,7 @@ def get_images(ctx, cluster, service, container):
               help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
 @click.option("--chamber-env", required=False)
 @click.pass_context
-def ssh_service(ctx, cluster, service, service_arn, task_arn, rails, user, keydir, chamber_env):
+def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, chamber_env):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
 
     service_arn = _get_service_arn(ecs_client, cluster, service)
