@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import json
 import sys
-import sys
 import click
 
 from .ecs_client import ECSClient
