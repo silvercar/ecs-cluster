@@ -96,7 +96,7 @@ class ECSClient:
         return service
 
     def update_image(self, cluster_name, service_arn, container_name,
-                     hostname, image_name, latest=False, entrypoint=False):
+                     hostname, image_name, latest=False, entrypoint=None):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
