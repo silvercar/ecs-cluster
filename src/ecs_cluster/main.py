@@ -55,6 +55,7 @@ def list_services(ctx, cluster):
 @click.option("--cluster", required=True)
 @click.option("--service", required=False)
 @click.option("--hostname", required=False)
+@click.option("--entrypoint", required=False)
 @click.option("--container", required=True)
 @click.option("--image", required=True)
 @click.option("--restart", is_flag=True, default=False,
@@ -62,7 +63,7 @@ def list_services(ctx, cluster):
 @click.option("--latest", is_flag=True, default=False,
               help="Update the latest task definition, even if it's not the one currently in use")
 @click.pass_context
-def update_image(ctx, cluster, service, hostname, container, image, restart, latest):
+def update_image(ctx, cluster, service, hostname, entrypoint, container, image, restart, latest):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
     service_arn = _get_service_arn(ecs_client, cluster, service)
 
@@ -76,7 +77,7 @@ def update_image(ctx, cluster, service, hostname, container, image, restart, lat
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, hostname, image, latest)
+            cluster, service_arn, container, hostname, image, latest, entrypoint)
 
     if service:
         click.echo('Success')
