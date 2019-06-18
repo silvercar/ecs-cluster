@@ -96,7 +96,7 @@ class ECSClient:
         return service
 
     def update_image(self, cluster_name, service_arn, container_name,
-                     hostname, image_name, latest=False, entrypoint=None):
+                     hostname, image_name, latest=False, entrypoint=None, command=None):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
@@ -119,7 +119,8 @@ class ECSClient:
                                           container_name,
                                           image_name,
                                           hostname,
-                                          entrypoint)
+                                          entrypoint,
+                                          command)
         if new_taskdef_arn is None:
             _print_error(
                 "Unable to clone the task definition " + old_taskdef_arn)
@@ -216,7 +217,7 @@ class ECSClient:
                 response['taskDefinition']['containerDefinitions']]
 
     def clone_task(self, task_definition_arn, container_name, image_name,
-                   hostname=None, entrypoint=None):
+                   hostname=None, entrypoint=None, command=None):
         """ Clones a task and sets its image attribute. Returns the new
             task definition arn if successful, otherwise None
         """
@@ -237,6 +238,8 @@ class ECSClient:
                     container['hostname'] = hostname
                 if entrypoint is not None:
                     container['entryPoint'] = entrypoint.split()
+                if command is not None:
+                    container['command'] = command.split()
         task_def['containerDefinitions'] = containers
 
         # Remove fields not required for new task def
