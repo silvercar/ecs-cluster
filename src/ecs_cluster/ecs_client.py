@@ -236,7 +236,7 @@ class ECSClient:
                 if hostname is not None:
                     container['hostname'] = hostname
                 if entrypoint is not None:
-                    container['entryPoint'] = entrypoint
+                    container['entryPoint'] = entrypoint.split()
         task_def['containerDefinitions'] = containers
 
         # Remove fields not required for new task def
