@@ -9,12 +9,6 @@ import paramiko
 def _print_error(msg):
     print('Error: ' + msg)
 
-
-def _build_pem_path(key_dir, key_name):
-    home = os.environ['HOME']
-    return os.path.join(home, key_dir, '%s.pem' % key_name)
-
-
 class ECSClient:
     """
     Abstraction of the boto ecs client
@@ -336,7 +330,7 @@ class ECSClient:
                 ip_address = host['PrivateIpAddress']
 
             key_name = host['KeyName']
-            pem_file = _build_pem_path(ssh_keydir, key_name)
+            pem_file = self._get_ssh_key(ssh_keydir, key_name)
             command = "docker stats --no-stream --no-trunc"
             ssh_client = paramiko.SSHClient()
             ssh_client.load_system_host_keys()
@@ -371,8 +365,9 @@ class ECSClient:
             ip_address = ec2_details['PublicIpAddress']
         else:
             ip_address = ec2_details['PrivateIpAddress']
+
         key_name = ec2_details['KeyName']
-        pem_file = _build_pem_path(ssh_key_dir, key_name)
+        pem_file = self._get_ssh_key(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'docker exec ' \
@@ -454,3 +449,15 @@ class ECSClient:
         response = self.ec2_client.describe_instances(InstanceIds=ids)
         details = response['Reservations'][0]['Instances'][0]
         return details
+
+    @staticmethod
+    def _get_ssh_key(key_dir, key_name):
+
+        home = os.environ['HOME']
+        path = os.path.join(home, key_dir, '%s.pem' % key_name)
+        if not os.path.exists(path):
+            path = os.path.join(home, key_dir, 'id_rsa')
+            if not os.path.exists(path):
+                raise FileNotFoundError('Could not find valid ssh key')
+
+        return path
