@@ -79,7 +79,7 @@ def update_image(ctx, cluster, service, hostname, command, entrypoint,
             cluster, service_arn, container, image)
     else:
         service = ecs_client.update_image(
-            cluster, service_arn, container, hostname, image, latest, entrypoint, command)
+            cluster, service_arn, container, hostname, image, entrypoint, command)
 
     if service:
         click.echo('Success')
