@@ -90,26 +90,21 @@ class ECSClient:
         return service
 
     def update_image(self, cluster_name, service_arn, container_name,
-                     hostname, image_name, latest=False, entrypoint=None, command=None):
+                     hostname, image_name, entrypoint=None, command=None):
         """ Update the image in a task definition
 
             Same as redeploy_image, except the tasks won't be stopped. Instead,
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
-            Set latest=true to update the newest task definition instead of the
-            one that's currently active.
         """
-        old_taskdef_arn = self.get_task_definition_arn(cluster_name, service_arn)
         latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
-        if latest:
-            old_taskdef_arn = latest_task_definition_arn
 
-        if old_taskdef_arn is None:
+        if latest_task_definition_arn is None:
             _print_error(
                 "No task definition found for service " + service_arn)
             return False
 
-        new_taskdef_arn = self.clone_task(old_taskdef_arn,
+        new_taskdef_arn = self.clone_task(latest_task_definition_arn,
                                           container_name,
                                           image_name,
                                           hostname,
@@ -117,12 +112,10 @@ class ECSClient:
                                           command)
         if new_taskdef_arn is None:
             _print_error(
-                "Unable to clone the task definition " + old_taskdef_arn)
+                "Unable to clone the task definition " + latest_task_definition_arn)
             return False
 
-        # Deregister the old task definition ONLY IF it is not the latest revision
-        if old_taskdef_arn != latest_task_definition_arn:
-            self.deregister_task_definition(old_taskdef_arn)
+        self.deregister_task_definition(latest_task_definition_arn)
 
         service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
         if not service:
