@@ -117,7 +117,7 @@ class ECSClient:
                 "Unable to clone the task definition " + latest_task_definition_arn)
             return False
         
-        self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value', 'ecs-cluster'}])
+        self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value': 'ecs-cluster'}])
 
         self.deregister_task_definition(latest_task_definition_arn)
 
