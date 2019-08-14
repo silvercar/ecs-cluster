@@ -25,6 +25,7 @@ jobs=1
 # object. This can help the performance when dealing with large functions or
 # complex, nested conditions.
 limit-inference-results=100
+max-line-length=120
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.

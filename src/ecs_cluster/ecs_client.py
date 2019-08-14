@@ -116,7 +116,7 @@ class ECSClient:
             _print_error(
                 "Unable to clone the task definition " + latest_task_definition_arn)
             return False
-        
+
         self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value': 'ecs-cluster'}])
 
         self.deregister_task_definition(latest_task_definition_arn)
@@ -191,17 +191,17 @@ class ECSClient:
             status='ACTIVE',
             sort='DESC'
         )
-        if not search_tag: 
+        if not search_tag:
             latest_arn = response['taskDefinitionArns'][0]
             return latest_arn
-        else:
-            for task_definition_arn in response['taskDefinitionArns']:
-                tags = self.ecs_client.list_tags_for_resource(resourceArn=task_definition_arn).get('tags')
-                for tag in tags:
-                    if tag['key'] == 'Managed' and tag['value'] == 'ecs-cluster':
-                        return task_definition_arn
-            print("Unable to find a task definition that is tagged 'Managed=%s', returning 'None'" % search_tag)
-            return None
+
+        for task_definition_arn in response['taskDefinitionArns']:
+            tags = self.ecs_client.list_tags_for_resource(resourceArn=task_definition_arn).get('tags')
+            for tag in tags:
+                if tag['key'] == 'Managed' and tag['value'] == 'ecs-cluster':
+                    return task_definition_arn
+        print("Unable to find a task definition that is tagged 'Managed=%s', returning 'None'" % search_tag)
+        return None
 
     def register_task_definition(self, register_kwargs):
         response = self.ecs_client.register_task_definition(**register_kwargs)
