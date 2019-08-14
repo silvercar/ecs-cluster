@@ -83,6 +83,8 @@ class ECSClient:
                 "Unable to clone the task definition " + old_taskdef_arn)
             return False
 
+        self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value', 'ecs-cluster'}])
+
         service = self.redeploy_service_task(cluster_name,
                                              service_arn,
                                              old_taskdef_arn,
@@ -97,7 +99,7 @@ class ECSClient:
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
         """
-        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
+        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn, search_tag='ecs-cluster')
 
         if latest_task_definition_arn is None:
             _print_error(
@@ -178,7 +180,7 @@ class ECSClient:
             return service['taskDefinition']
         return None
 
-    def get_latest_task_definition_arn(self, cluster_name, service_name):
+    def get_latest_task_definition_arn(self, cluster_name, service_name, search_tag=''):
 
         active_arn = self.get_task_definition_arn(cluster_name, service_name)
         family = self.get_task_family(active_arn)
@@ -189,13 +191,17 @@ class ECSClient:
             status='ACTIVE',
             sort='DESC'
         )
-        for task_definition_arn in response['taskDefinitionArns']:
-            tags = self.ecs_client.list_tags_for_resource(resourceArn=task_definition_arn).get('tags')
-            for tag in tags:
-                if tag['key'] == 'Managed' and tag['value'] == 'ecs-cluster':
-                    return task_definition_arn
-        print("Unable to find a task definition that is managed by ecs-cluster, returning 'None'")
-        return None
+        if not search_tag: 
+            latest_arn = response['taskDefinitionArns'][0]
+            return latest_arn
+        else:
+            for task_definition_arn in response['taskDefinitionArns']:
+                tags = self.ecs_client.list_tags_for_resource(resourceArn=task_definition_arn).get('tags')
+                for tag in tags:
+                    if tag['key'] == 'Managed' and tag['value'] == 'ecs-cluster':
+                        return task_definition_arn
+            print("Unable to find a task definition that is tagged 'Managed=%s', returning 'None'" % search_tag)
+            return None
 
     def register_task_definition(self, register_kwargs):
         response = self.ecs_client.register_task_definition(**register_kwargs)
