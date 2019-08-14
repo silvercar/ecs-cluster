@@ -99,7 +99,8 @@ class ECSClient:
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
         """
-        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn, search_tag='ecs-cluster')
+        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn,
+                                                                         search_tag='ecs-cluster')
 
         if latest_task_definition_arn is None:
             _print_error(
