@@ -83,7 +83,7 @@ class ECSClient:
                 "Unable to clone the task definition " + old_taskdef_arn)
             return False
 
-        self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value', 'ecs-cluster'}])
+        self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value': 'ecs-cluster'}])
 
         service = self.redeploy_service_task(cluster_name,
                                              service_arn,
