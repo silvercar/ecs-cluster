@@ -100,8 +100,8 @@ class ECSClient:
             whatever deployment strategy is configured.
         """
         latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
-        latest_ecs_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn,
-                                                                             search_tag='ecs-cluster')
+        latest_ecs_cluster_managed_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn,
+                                                                                             search_tag='ecs-cluster')
 
         if latest_task_definition_arn is None:
             _print_error(
