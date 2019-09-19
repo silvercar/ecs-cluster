@@ -99,8 +99,9 @@ class ECSClient:
             we'll let the ecs-agent do its thing and replace the tasks following
             whatever deployment strategy is configured.
         """
-        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn,
-                                                                         search_tag='ecs-cluster')
+        latest_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn)
+        latest_ecs_cluster_managed_task_definition_arn = self.get_latest_task_definition_arn(cluster_name, service_arn,
+                                                                                             search_tag='ecs-cluster')
 
         if latest_task_definition_arn is None:
             _print_error(
@@ -119,8 +120,8 @@ class ECSClient:
             return False
 
         self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value': 'ecs-cluster'}])
-
-        self.deregister_task_definition(latest_task_definition_arn)
+        if latest_ecs_cluster_managed_task_definition_arn is not None:
+            self.deregister_task_definition(latest_ecs_cluster_managed_task_definition_arn)
 
         service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
         if not service:
@@ -199,7 +200,7 @@ class ECSClient:
         for task_definition_arn in response['taskDefinitionArns']:
             tags = self.ecs_client.list_tags_for_resource(resourceArn=task_definition_arn).get('tags')
             for tag in tags:
-                if tag['key'] == 'Managed' and tag['value'] == 'ecs-cluster':
+                if tag['key'] == 'Managed' and tag['value'] == search_tag:
                     return task_definition_arn
         print("Unable to find a task definition that is tagged 'Managed=%s', returning 'None'" % search_tag)
         return None
