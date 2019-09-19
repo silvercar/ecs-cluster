@@ -120,7 +120,7 @@ class ECSClient:
             return False
 
         self.ecs_client.tag_resource(resourceArn=new_taskdef_arn, tags=[{'key': 'Managed', 'value': 'ecs-cluster'}])
-        if latest_ecs_task_definition_arn is None:
+        if latest_ecs_task_definition_arn is not None:
             self.deregister_task_definition(latest_ecs_task_definition_arn)
 
         service = self.update_service(cluster_name, service_arn, new_taskdef_arn)
