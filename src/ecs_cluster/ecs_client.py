@@ -325,9 +325,7 @@ class ECSClient:
 
     # pylint: disable=too-many-locals
     def docker_stats(self, cluster_name, ssh_keydir, user):
-        # pylint: disable=unnecessary-comprehension
-        arns = [x for x in self.ecs_client.list_container_instances(
-            cluster=cluster_name)["containerInstanceArns"]]
+        arns = self.ecs_client.list_container_instances(cluster=cluster_name)["containerInstanceArns"]
         host_ids = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
             cluster=cluster_name, containerInstances=arns)["containerInstances"]]
         hosts = [self._get_ec2_details(x) for x in host_ids]
