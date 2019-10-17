@@ -135,7 +135,8 @@ class ECSClient:
         """ Returns the ARN of all services found for the cluster
         """
         try:
-            response = self.ecs_client.list_services(cluster=cluster_name)
+            response = self.ecs_client.list_services(cluster=cluster_name,
+                                                     maxResults=100)
         except ClientError:
             _print_error(
                 "Error getting list of services for %s" % cluster_name)
@@ -324,8 +325,7 @@ class ECSClient:
 
     # pylint: disable=too-many-locals
     def docker_stats(self, cluster_name, ssh_keydir, user):
-        arns = [x for x in self.ecs_client.list_container_instances(
-            cluster=cluster_name)["containerInstanceArns"]]
+        arns = self.ecs_client.list_container_instances(cluster=cluster_name)["containerInstanceArns"]
         host_ids = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
             cluster=cluster_name, containerInstances=arns)["containerInstances"]]
         hosts = [self._get_ec2_details(x) for x in host_ids]
