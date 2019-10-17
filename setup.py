@@ -22,7 +22,7 @@ def read(fname):
 
 setup(
     name='ecs-cluster',
-    version='1.5.2',
+    version='1.5.3',
     author='Silvercar',
     author_email="info@silvercar.com",
     url='https://github.com/silvercar/ecs-cluster',
