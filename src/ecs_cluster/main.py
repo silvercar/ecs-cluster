@@ -134,11 +134,13 @@ def get_images(ctx, cluster, service, container):
 @click.option("--task-arn", required=False)
 @click.option("--rails", help='enter rails console', is_flag=True, required=False, default=False)
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
-@click.option('--keydir', required=False,
-              help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option('--keydir', required=False, default=".ssh",
+              help="Directory name in $HOME where your ssh pem files are stored")
+@click.option('--keyname', required=False, default='foxpass',
+              help="Name of the PEM file in the keydir")
 @click.option("--chamber-env", required=False)
 @click.pass_context
-def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, chamber_env):
+def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, chamber_env):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
 
     service_arn = _get_service_arn(ecs_client, cluster, service)
@@ -154,7 +156,7 @@ def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, chamber_en
         service_cmd = 'chamber exec {} -- {}'.format(chamber_env, service_cmd)
 
     ecs_client.ssh_to_service(cluster, service_arn,
-                              task_arn, user, keydir, service_cmd)
+                              task_arn, user, keydir, service_cmd, keyname)
 
 
 @click.command('docker-stats')

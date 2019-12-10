@@ -356,7 +356,7 @@ class ECSClient:
 
     # pylint: disable=too-many-locals
     def ssh_to_service(self, cluster_name, service_arn, task_arn,
-                       ssh_user, ssh_key_dir, service_cmd):
+                       ssh_user, ssh_key_dir, service_cmd, key_name):
         service = self.get_service(cluster_name, service_arn)
         if service is None:
             _print_error(
@@ -373,11 +373,10 @@ class ECSClient:
         else:
             ip_address = ec2_details['PrivateIpAddress']
 
-        key_name = ec2_details['KeyName']
         pem_file = self._get_ssh_key(ssh_key_dir, key_name)
 
         container_id = self._find_container_id(ip_address, task_arn)
-        docker_cmd = 'docker exec ' \
+        docker_cmd = 'sudo docker exec ' \
                      '-e COLUMNS="`tput cols`" ' \
                      '-e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no ' \
@@ -461,7 +460,9 @@ class ECSClient:
     def _get_ssh_key(key_dir, key_name):
 
         home = os.environ['HOME']
-        path = os.path.join(home, key_dir, '%s.pem' % key_name)
+        path = os.path.join(home, key_dir, key_name)
+        if not os.path.exists(path):
+            path = os.path.join(home, key_dir, '%s.pem' % key_name)
         if not os.path.exists(path):
             path = os.path.join(home, key_dir, 'id_rsa')
             if not os.path.exists(path):
