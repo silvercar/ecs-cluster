@@ -136,8 +136,9 @@ def get_images(ctx, cluster, service, container):
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
 @click.option('--keydir', required=False, default=".ssh",
               help="Directory name in $HOME where your ssh pem files are stored")
-@click.option('--keyname', required=False, default='foxpass',
-              help="Name of the PEM file in the keydir")
+@click.option('--keyname', required=False, default=None,
+              help="Name of the PEM file in the keydir. If not specified, it "
+                   "will use the key name as specified by the ECS cluster config")
 @click.option("--chamber-env", required=False)
 @click.pass_context
 def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, chamber_env):

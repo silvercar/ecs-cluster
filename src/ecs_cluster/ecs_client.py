@@ -338,7 +338,7 @@ class ECSClient:
 
             key_name = host['KeyName']
             pem_file = self._get_ssh_key(ssh_keydir, key_name)
-            command = "docker stats --no-stream --no-trunc"
+            command = "sudo docker stats --no-stream --no-trunc"
             ssh_client = paramiko.SSHClient()
             ssh_client.load_system_host_keys()
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
@@ -372,6 +372,9 @@ class ECSClient:
             ip_address = ec2_details['PublicIpAddress']
         else:
             ip_address = ec2_details['PrivateIpAddress']
+
+        if key_name is None:
+            key_name = ec2_details['KeyName']
 
         pem_file = self._get_ssh_key(ssh_key_dir, key_name)
 
@@ -465,7 +468,9 @@ class ECSClient:
             path = os.path.join(home, key_dir, '%s.pem' % key_name)
         if not os.path.exists(path):
             path = os.path.join(home, key_dir, 'id_rsa')
-            if not os.path.exists(path):
+            if os.path.exists(path):
+                print('\n*** Warning, could not find the specified ssh key, falling back to %s ***\n' % path)
+            else:
                 raise FileNotFoundError('Could not find valid ssh key')
 
         return path
