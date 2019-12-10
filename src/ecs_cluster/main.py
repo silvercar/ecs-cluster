@@ -164,11 +164,14 @@ def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, c
 @click.option("--cluster", required=True)
 @click.option('--keydir', required=False,
               help="Directory name in $HOME where your ssh pem files are stored", default=".ssh")
+@click.option('--keyname', required=False, default=None,
+              help="Name of the PEM file in the keydir. If not specified, it "
+                   "will use the key name as specified by the ECS cluster config")
 @click.option('--user', help='ssh user, defaults to "ec2-user"', default='ec2-user')
 @click.pass_context
-def docker_stats(ctx, cluster, keydir, user):
+def docker_stats(ctx, cluster, keydir, user, keyname):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
-    ecs_client.docker_stats(cluster, keydir, user)
+    ecs_client.docker_stats(cluster, keydir, user, keyname)
 
 
 cli.add_command(list_services)

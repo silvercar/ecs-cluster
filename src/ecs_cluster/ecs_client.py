@@ -324,7 +324,7 @@ class ECSClient:
         return response['tasks'][0]
 
     # pylint: disable=too-many-locals
-    def docker_stats(self, cluster_name, ssh_keydir, user):
+    def docker_stats(self, cluster_name, ssh_keydir, user, key_name):
         arns = self.ecs_client.list_container_instances(cluster=cluster_name)["containerInstanceArns"]
         host_ids = [x["ec2InstanceId"] for x in self.ecs_client.describe_container_instances(
             cluster=cluster_name, containerInstances=arns)["containerInstances"]]
@@ -336,7 +336,9 @@ class ECSClient:
             else:
                 ip_address = host['PrivateIpAddress']
 
-            key_name = host['KeyName']
+            if key_name is None:
+                key_name = host['KeyName']
+
             pem_file = self._get_ssh_key(ssh_keydir, key_name)
             command = "sudo docker stats --no-stream --no-trunc"
             ssh_client = paramiko.SSHClient()
