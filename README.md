@@ -17,7 +17,7 @@ to its deployment configuration/health check rules).
 
 ### SSHing into a container
 
-`ecs-cluster ssh-service --cluster cluster-name --service service-name`
+`ecs-cluster ssh-service --cluster cluster-name --service service-name --user username`
 
 ### Updating a task image and restarting the task
 
