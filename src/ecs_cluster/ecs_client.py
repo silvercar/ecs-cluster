@@ -382,8 +382,9 @@ class ECSClient:
 
         container_id = self._find_container_id(ip_address, task_arn)
         docker_cmd = 'sudo docker exec ' \
+                     '-e SSH_USER={} ' \
                      '-e COLUMNS="`tput cols`" ' \
-                     '-e LINES="`tput lines`" -it {} {}'.format(container_id, service_cmd)
+                     '-e LINES="`tput lines`" -it {} {}'.format(ssh_user, container_id, service_cmd)
         system_cmd = 'ssh -t -o StrictHostKeyChecking=no ' \
                      '-o TCPKeepAlive=yes ' \
                      '-o ServerAliveInterval=50 -i {} {}@{} {}' \
