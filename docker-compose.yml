@@ -1,0 +1,8 @@
+version: '3.3'
+services:
+  python-build:
+    build:
+      context: .
+    volumes:
+      - ~/.aws:/root/.aws
+      - .:/home
