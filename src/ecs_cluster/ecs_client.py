@@ -358,7 +358,7 @@ class ECSClient:
 
     # pylint: disable=too-many-locals
     def ssh_to_service(self, cluster_name, service_arn, task_arn,
-                       ssh_user, ssh_key_dir, service_cmd, key_name):
+                       ssh_user, ssh_key_dir, service_cmd, key_name, container_name):
         service = self.get_service(cluster_name, service_arn)
         if service is None:
             _print_error(
@@ -380,7 +380,7 @@ class ECSClient:
 
         pem_file = self._get_ssh_key(ssh_key_dir, key_name)
 
-        container_id = self._find_container_id(ip_address, task_arn)
+        container_id = self._find_container_id(ip_address, task_arn, container_name)
         docker_cmd = 'sudo docker exec ' \
                      '-e SSH_USER={} ' \
                      '-e COLUMNS="`tput cols`" ' \
@@ -440,20 +440,25 @@ class ECSClient:
         return response['containerInstances']
 
     @staticmethod
-    def _find_container_id(ip_address, task_arn):
+    def _find_container_id(ip_address, task_arn, container_name=None):
         """
         Query the ECS agent to obtain the local docker container id
         which is needed during the docker exec phase
         """
         url = 'http://%s:51678/v1/tasks' % ip_address
         response = requests.get(url=url)
+
         data = response.json()
         tasks = [task for task in data['Tasks'] if task['Arn'] == task_arn]
         if not tasks:
             _print_error("No container found for task %s" % task_arn)
             return None
-        # There should only be 1 task matching the task_arn
-        # This also assumes there is 1 container per task, maybe that's not always true?
+
+        if container_name is not None:
+            return [container['DockerId']
+                    for container in tasks[0]['Containers']
+                    if container['Name'] == container_name][0]
+                    
         return [container['DockerId'] for container in tasks[0]['Containers']][0]
 
     def _get_ec2_details(self, ec2_arn):

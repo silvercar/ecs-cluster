@@ -140,8 +140,9 @@ def get_images(ctx, cluster, service, container):
               help="Name of the PEM file in the keydir. If not specified, it "
                    "will use the key name as specified by the ECS cluster config")
 @click.option("--chamber-env", required=False)
+@click.option("--container-name", required=False, default=None)
 @click.pass_context
-def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, chamber_env):
+def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, chamber_env, container_name):
     ecs_client = ECSClient(timeout=ctx.obj['timeout'])
 
     service_arn = _get_service_arn(ecs_client, cluster, service)
@@ -157,7 +158,7 @@ def ssh_service(ctx, cluster, service, task_arn, rails, user, keydir, keyname, c
         service_cmd = 'chamber exec {} -- {}'.format(chamber_env, service_cmd)
 
     ecs_client.ssh_to_service(cluster, service_arn,
-                              task_arn, user, keydir, service_cmd, keyname)
+                              task_arn, user, keydir, service_cmd, keyname, container_name)
 
 
 @click.command('docker-stats')
