@@ -458,7 +458,7 @@ class ECSClient:
             return [container['DockerId']
                     for container in tasks[0]['Containers']
                     if container['Name'] == container_name][0]
-                    
+
         return [container['DockerId'] for container in tasks[0]['Containers']][0]
 
     def _get_ec2_details(self, ec2_arn):
